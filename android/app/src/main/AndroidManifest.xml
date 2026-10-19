@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Supabase auth/data sync: app talks to its backend over HTTPS. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="attendance"
+        android:label="Attendance"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
