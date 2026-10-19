@@ -9,6 +9,10 @@ Concise Stage 2 plan per AGENTS.md. Living document; update as slices land.
   verification targets the user's hosted dev project (`supabase link`).
 - Auth slice verified on a real device (owner sign-in).
 - **Core backend slice live and verified against the hosted project** (see below).
+- **Organisation/staff slice implemented in Flutter** (setup gate, create business,
+  join with invite token, owner seat/roster view, staff invites, deactivate/
+  reactivate). 56 unit/widget tests pass; analyzer clean. Device install pending
+  until the test phone is reconnected over USB.
 
 ## Architecture decisions
 
@@ -18,9 +22,17 @@ Concise Stage 2 plan per AGENTS.md. Living document; update as slices land.
   `refreshListenable` bridge from the auth controller.
 - Auth: Supabase email/password. Email confirmation handled honestly
   (`needsEmailVerification` outcome → verification notice, button disabled).
-- Error model: single `AppException` + central `mapAuthError` with calm, specific
-  microcopy; UI never shows raw SDK text.
+- Error model: single `AppException` + central `mapAuthError` / `mapBackendError`
+  with calm, specific microcopy; UI never shows raw SDK text. Backend `ATT:*`
+  codes map to fixed copy, unknown codes stay honest.
 - Config: `flutter_dotenv` loading committed-placeholder `.env`; publication-safe.
+- Organisation feature layout: `lib/features/organisation/{data,domain,presentation}`.
+  Screens depend on an `OrganisationRepository` abstraction; widget tests use
+  `FakeOrganisationRepository`. Device timezone comes from `flutter_timezone`
+  (IANA id), with a searchable curated fallback list.
+- Post-auth routing: `/home` is an account gate driven by `myAccountProvider`
+  (membership + org + plan). It renders setup choices, owner dashboard, employee
+  home or "access paused" — no client-side role flags.
 - Android: `minSdk 24`, `INTERNET` permission only (foreground location permission
   added in the geofence slice).
 
@@ -47,6 +59,10 @@ Migrations (`supabase/migrations/`):
   re-check under the same lock. One active employee membership per user.
 - `20261019134725_advisors_hardening.sql` — pinned search paths; trigger functions
   no longer RPC-callable.
+- `20261019141709_org_select_inactive_members.sql` — deactivated members keep read
+  access to the organisation's identity only (name/timezone/plan), so the app can
+  show an honest "access paused" state. Workplaces/settings stay restricted to
+  invited/active members.
 
 Error contract: functions raise `ATT:<code>` (P0001). Client maps codes to copy.
 Codes: `not_authenticated`, `invalid_org_name`, `unknown_plan`, `unknown_timezone`,
@@ -89,9 +105,13 @@ Advisors remaining (accepted/documented):
 
 ## Next slices
 
-3. **Org creation + join UI (Flutter)** — owner onboarding form → `create_organisation`;
-   employee join screen → `claim_membership`; seat usage display; repo + tests;
-   device verification.
+3. ~~**Org creation + join UI (Flutter)**~~ — shipped: setup gate, owner create form
+   (name + timezone), employee join (token normalisation + mapped errors), owner
+   seat/roster dashboard, invite sheet with one-time token + copy, deactivate/
+   reactivate with reason-free confirmation (server enforces seat limits and
+   guards). Unit/widget tests: `test/unit/*`, `test/widget/{create_organisation,
+   join_organisation,owner_home,employee_home,invite_staff_sheet,router_redirect}_*`.
+   Remaining for this slice: install + manual verification on the test device.
 4. **Workplaces** — CRUD + flutter_map geofence UI + QR token generation/revocation.
 5. **Attendance** — server-side punch function (state machine + idempotency +
    geofence/accuracy validation), employee home with live duration, QR scanner flow.
@@ -102,11 +122,12 @@ Advisors remaining (accepted/documented):
 
 ## Testing strategy
 
-- Unit: validators, error mapping (done); next: distance/late/duration/state
-  machines, plan limits, attendance-code mapping.
-- Widget: forms, loading/empty/error, role choice, a11y semantics, button states (done
-  for auth); next: org form, join flow, punch states.
-- Router: welcome→auth→home transitions under fake auth stream (done).
+- Unit: validators, auth + backend error mapping (done, incl. every `ATT:*` code
+  used by the UI); next: distance/late/duration/state machines, attendance codes.
+- Widget: forms, loading/empty/error, role choice, a11y semantics, button states
+  (auth); org create/join validation + navigation, owner roster/seat usage,
+  employee home, invite result sheet (done). 56 tests passing.
+- Router: welcome→auth→home gate transitions under fake auth stream (done).
 - Backend: versioned SQL probes in `supabase/tests/`; behavioural suite executed via
   REST against the linked project (suites A/B/C, this repo's history). No local
   Postgres available, so pgTAP runs are deferred until an environment has Docker.
@@ -118,6 +139,14 @@ Advisors remaining (accepted/documented):
 - Enable leaked-password protection in the Supabase dashboard (auth settings).
 - `db.pooler.default_pool_size` / `max_client_conn` are dashboard-owned and don't
   round-trip through `config push`; differences are expected noise in `config diff`.
+- Membership/roster data refreshes on gate load, pull-to-refresh (owner) and after
+  mutations; no Realtime subscription yet — an employee deactivated mid-session
+  keeps a stale screen until reload (server still rejects all actions).
+- The one-time invite token cannot be re-read after creation (hash-only storage).
+  A re-issue/rotate flow is required before beta so owners can recover a lost
+  token without deleting the member.
+- Employees have no pull-to-refresh on their home yet; the paused/active state is
+  evaluated when the gate loads.
 
 ## Major risks / mitigations
 

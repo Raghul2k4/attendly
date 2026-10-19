@@ -42,4 +42,36 @@ void main() {
       expect(Validators.fullName('x' * 80), isNull);
     });
   });
+
+  group('Validators.businessName', () {
+    test('requires a name and caps length', () {
+      expect(Validators.businessName('Corner Cafe'), isNull);
+      expect(Validators.businessName('   '), isNotNull);
+      expect(Validators.businessName('x' * 81), isNotNull);
+    });
+  });
+
+  group('Validators.inviteToken', () {
+    const raw = 'ABCDEFGHJKMNPQRSTUVW';
+
+    test('accepts grouped, mixed-case tokens by normalising them', () {
+      expect(Validators.inviteToken('abcd-efgh-jkmn-pqrs-tuvw'), isNull);
+      expect(Validators.inviteToken(' ABCD EFGH JKMN PQRS TUVW '), isNull);
+      expect(Validators.normaliseInviteToken('abcd efgh'), 'ABCDEFGH');
+    });
+
+    test('rejects wrong length and ambiguous characters', () {
+      expect(Validators.inviteToken(''), isNotNull);
+      expect(Validators.inviteToken(raw.substring(0, 19)), isNotNull);
+      expect(
+        Validators.inviteToken(raw.replaceFirst('K', 'I')),
+        isNotNull,
+        reason: 'I/L/O are excluded from the token alphabet',
+      );
+    });
+
+    test('formats 20-character tokens into fours for sharing', () {
+      expect(Validators.formatInviteToken(raw), 'ABCD-EFGH-JKMN-PQRS-TUVW');
+    });
+  });
 }

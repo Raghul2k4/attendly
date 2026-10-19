@@ -5,9 +5,11 @@ import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/auth_controller.dart';
 import '../features/auth/presentation/sign_in_screen.dart';
 import '../features/auth/presentation/sign_up_screen.dart';
-import '../features/dashboard/presentation/account_home_screen.dart';
 import '../features/onboarding/domain/user_role.dart';
 import '../features/onboarding/welcome_screen.dart';
+import '../features/organisation/presentation/account_gate_screen.dart';
+import '../features/organisation/presentation/create_organisation_screen.dart';
+import '../features/organisation/presentation/join_organisation_screen.dart';
 import '../features/splash/splash_screen.dart';
 
 /// Bridges riverpod auth changes into go_router's refreshListenable.
@@ -61,8 +63,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/home',
-        name: 'account-home',
-        builder: (_, _) => const AccountHomeScreen(),
+        name: 'home',
+        builder: (_, _) => const AccountGateScreen(),
+      ),
+      GoRoute(
+        path: '/setup/create-organisation',
+        name: 'create-organisation',
+        builder: (_, _) => const CreateOrganisationScreen(),
+      ),
+      GoRoute(
+        path: '/setup/join',
+        name: 'join-organisation',
+        builder: (_, _) => const JoinOrganisationScreen(),
       ),
     ],
   );
@@ -70,7 +82,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
 /// Guards are declarative here:
 ///  unknown  → splash only (bootstrap hasn't resolved yet)
-///  signedIn → everything funnels to home
+///  signedIn → home plus the setup screens it can push
 ///  signedOut→ public onboarding screens only; '/' bounces to welcome
 String? _redirect(GoRouterState state, AuthState auth) {
   final location = state.matchedLocation;
@@ -78,7 +90,8 @@ String? _redirect(GoRouterState state, AuthState auth) {
     case AuthStatus.unknown:
       return location == '/' ? null : '/';
     case AuthStatus.signedIn:
-      return location == '/home' ? null : '/home';
+      final isInsideApp = location == '/home' || location.startsWith('/setup/');
+      return isInsideApp ? null : '/home';
     case AuthStatus.signedOut:
       final isPublic =
           location == '/welcome' ||

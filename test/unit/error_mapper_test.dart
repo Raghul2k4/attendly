@@ -71,4 +71,51 @@ void main() {
       expect(identical(original, mapped), isTrue);
     });
   });
+
+  group('mapBackendError', () {
+    PostgrestException att(String code) =>
+        PostgrestException(message: 'ATT:$code', code: 'P0001');
+
+    test('seat limit gets specific upgrade guidance', () {
+      final mapped = mapBackendError(att('plan_limit_reached'));
+      expect(mapped.kind, AppErrorKind.conflict);
+      expect(mapped.message, contains('plan is full'));
+    });
+
+    test('used invite tokens explain that a new one is needed', () {
+      final mapped = mapBackendError(att('invite_token_not_found'));
+      expect(mapped.kind, AppErrorKind.conflict);
+      expect(mapped.message, contains('already used'));
+    });
+
+    test('owner-only actions map to permission errors', () {
+      final mapped = mapBackendError(att('not_org_owner'));
+      expect(mapped.kind, AppErrorKind.permission);
+      expect(mapped.message, contains('business owner'));
+    });
+
+    test('duplicate active employee is explained calmly', () {
+      final mapped = mapBackendError(att('already_active_employee'));
+      expect(mapped.kind, AppErrorKind.conflict);
+      expect(mapped.message, contains('active employee'));
+    });
+
+    test('unknown ATT codes stay honest about saving failing', () {
+      final mapped = mapBackendError(att('some_future_code'));
+      expect(mapped.kind, AppErrorKind.server);
+      expect(mapped.message, contains('couldn’t save'));
+    });
+
+    test('row-level rejections map to permission', () {
+      final mapped = mapBackendError(
+        PostgrestException(message: 'row-level security', code: '42501'),
+      );
+      expect(mapped.kind, AppErrorKind.permission);
+    });
+
+    test('app exceptions pass through unchanged', () {
+      const original = AppException('Keep this.', kind: AppErrorKind.conflict);
+      expect(identical(original, mapBackendError(original)), isTrue);
+    });
+  });
 }

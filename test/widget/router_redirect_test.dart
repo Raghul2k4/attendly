@@ -1,11 +1,14 @@
 import 'package:attendance/app/app.dart';
 import 'package:attendance/features/auth/data/auth_repository.dart'
     show authRepositoryProvider;
+import 'package:attendance/features/organisation/presentation/organisation_providers.dart'
+    show organisationRepositoryProvider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../support/fake_auth_repository.dart';
+import '../support/fake_organisation_repository.dart';
 
 void main() {
   group('app routing around auth state', () {
@@ -13,10 +16,14 @@ void main() {
       'starts at welcome, reaches home on session, returns on sign out',
       (tester) async {
         final fake = FakeAuthRepository();
+        final organisations = FakeOrganisationRepository();
 
         await tester.pumpWidget(
           ProviderScope(
-            overrides: [authRepositoryProvider.overrideWithValue(fake)],
+            overrides: [
+              authRepositoryProvider.overrideWithValue(fake),
+              organisationRepositoryProvider.overrideWithValue(organisations),
+            ],
             child: const AttendanceApp(),
           ),
         );
@@ -34,11 +41,13 @@ void main() {
         fake.emitChange(user);
         await tester.pumpAndSettle();
 
-        expect(find.text('Signed in as'), findsOneWidget);
-        expect(find.text('Ada'), findsOneWidget);
+        // Signed in without a membership: the gate offers setup paths.
+        expect(find.text('Hi, Ada'), findsOneWidget);
+        expect(find.text('Create a business'), findsOneWidget);
+        expect(find.text('Join with an invite token'), findsOneWidget);
 
         // Explicit sign out returns to the public area.
-        await tester.tap(find.text('Sign out'));
+        await tester.tap(find.byTooltip('Sign out'));
         await tester.pumpAndSettle();
 
         expect(fake.signOutCalls, 1);
@@ -50,10 +59,14 @@ void main() {
       tester,
     ) async {
       final fake = FakeAuthRepository();
+      final organisations = FakeOrganisationRepository();
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [authRepositoryProvider.overrideWithValue(fake)],
+          overrides: [
+            authRepositoryProvider.overrideWithValue(fake),
+            organisationRepositoryProvider.overrideWithValue(organisations),
+          ],
           child: const AttendanceApp(),
         ),
       );
@@ -61,7 +74,8 @@ void main() {
 
       // Guards redirect unknown/signed-out to public area, never home.
       expect(find.text('I own a business'), findsOneWidget);
-      expect(find.text('Signed in as'), findsNothing);
+      expect(find.text('Create a business'), findsNothing);
+      expect(organisations.fetchAccountCalls, 0);
     });
   });
 }
