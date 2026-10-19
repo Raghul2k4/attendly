@@ -1,6 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Supabase auth/data sync: app talks to its backend over HTTPS. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Foreground location only: placing the workplace marker and, later,
+         validating attendance punches. No background location is requested. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <application
         android:label="Attendance"
         android:name="${applicationName}"

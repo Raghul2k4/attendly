@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_dimensions.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/widgets/app_error_panel.dart';
+import '../../workplaces/presentation/workplace_providers.dart';
 import '../domain/organisation_models.dart';
 import 'organisation_providers.dart';
 import 'widgets/invite_staff_sheet.dart';
@@ -98,6 +100,16 @@ class _OwnerDashboard extends ConsumerWidget {
     final limit = plan?.maxActiveEmployees ?? 15;
     final used = members.activeEmployees;
     final pending = members.pendingInvites;
+    final workplaces = ref.watch(workplacesProvider(organisation.id));
+    final workplaceSummary = workplaces.when(
+      data: (list) => list.isEmpty
+          ? 'Add your first location and check-in radius'
+          : '${list.length} ${list.length == 1 ? 'location' : 'locations'} '
+                '· Manage geofence and QR codes',
+      loading: () => 'Set locations, check-in radius and QR codes',
+      error: (error, stackTrace) =>
+          'Set locations, check-in radius and QR codes',
+    );
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -179,6 +191,8 @@ class _OwnerDashboard extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
+        _WorkplacesEntry(subtitle: workplaceSummary),
+        const SizedBox(height: AppSpacing.xl),
         Row(
           children: [
             Text('Team', style: textTheme.titleMedium),
@@ -220,6 +234,70 @@ class _OwnerDashboard extends ConsumerWidget {
               ),
             ),
       ],
+    );
+  }
+}
+
+class _WorkplacesEntry extends StatelessWidget {
+  const _WorkplacesEntry({required this.subtitle});
+
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: InkWell(
+        onTap: () => context.push('/workplaces'),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.emerald50,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: const Icon(
+                  Icons.place_outlined,
+                  color: AppColors.emerald700,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Workplaces', style: textTheme.titleSmall),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      subtitle,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: AppColors.slate500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: AppIconSize.md,
+                color: AppColors.slate400,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

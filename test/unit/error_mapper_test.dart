@@ -113,6 +113,26 @@ void main() {
       expect(mapped.kind, AppErrorKind.permission);
     });
 
+    test('inactive workplaces explain why QR generation is blocked', () {
+      final mapped = mapBackendError(att('workplace_inactive'));
+      expect(mapped.kind, AppErrorKind.conflict);
+      expect(mapped.message, contains('inactive'));
+    });
+
+    test('missing workplaces are recoverable', () {
+      final mapped = mapBackendError(att('workplace_not_found'));
+      expect(mapped.kind, AppErrorKind.conflict);
+      expect(mapped.message, contains('couldn’t be found'));
+    });
+
+    test('workplace constraint violations are input errors', () {
+      final mapped = mapBackendError(
+        PostgrestException(message: 'check constraint', code: '23514'),
+      );
+      expect(mapped.kind, AppErrorKind.invalidInput);
+      expect(mapped.message, contains('workplace details'));
+    });
+
     test('app exceptions pass through unchanged', () {
       const original = AppException('Keep this.', kind: AppErrorKind.conflict);
       expect(identical(original, mapBackendError(original)), isTrue);

@@ -51,6 +51,17 @@ void main() {
     });
   });
 
+  group('Validators.workplaceName', () {
+    test('requires a name and caps length', () {
+      expect(Validators.workplaceName('Main shop'), isNull);
+      expect(Validators.workplaceName('  Main shop  '), isNull);
+      expect(Validators.workplaceName(''), isNotNull);
+      expect(Validators.workplaceName('   '), isNotNull);
+      expect(Validators.workplaceName('x' * 80), isNull);
+      expect(Validators.workplaceName('x' * 81), isNotNull);
+    });
+  });
+
   group('Validators.inviteToken', () {
     const raw = 'ABCDEFGHJKMNPQRSTUVW';
 

@@ -11,6 +11,8 @@ import '../features/organisation/presentation/account_gate_screen.dart';
 import '../features/organisation/presentation/create_organisation_screen.dart';
 import '../features/organisation/presentation/join_organisation_screen.dart';
 import '../features/splash/splash_screen.dart';
+import '../features/workplaces/presentation/workplace_editor_screen.dart';
+import '../features/workplaces/presentation/workplaces_screen.dart';
 
 /// Bridges riverpod auth changes into go_router's refreshListenable.
 class AuthStateListenable extends ChangeNotifier {
@@ -67,6 +69,24 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const AccountGateScreen(),
       ),
       GoRoute(
+        path: '/workplaces',
+        name: 'workplaces',
+        builder: (_, _) => const WorkplacesScreen(),
+        routes: [
+          GoRoute(
+            path: 'new',
+            name: 'new-workplace',
+            builder: (_, _) => const WorkplaceEditorScreen(),
+          ),
+          GoRoute(
+            path: ':id',
+            name: 'edit-workplace',
+            builder: (_, state) =>
+                WorkplaceEditorScreen(workplaceId: state.pathParameters['id']),
+          ),
+        ],
+      ),
+      GoRoute(
         path: '/setup/create-organisation',
         name: 'create-organisation',
         builder: (_, _) => const CreateOrganisationScreen(),
@@ -90,7 +110,10 @@ String? _redirect(GoRouterState state, AuthState auth) {
     case AuthStatus.unknown:
       return location == '/' ? null : '/';
     case AuthStatus.signedIn:
-      final isInsideApp = location == '/home' || location.startsWith('/setup/');
+      final isInsideApp =
+          location == '/home' ||
+          location.startsWith('/setup/') ||
+          location.startsWith('/workplaces');
       return isInsideApp ? null : '/home';
     case AuthStatus.signedOut:
       final isPublic =

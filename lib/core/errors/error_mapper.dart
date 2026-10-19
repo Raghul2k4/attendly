@@ -146,6 +146,15 @@ AppException mapBackendError(Object error, {StackTrace? stackTrace}) {
         'That invite token doesn’t look right. Check it and try again.',
         AppErrorKind.invalidInput,
       ),
+      'workplace_not_found' => (
+        'That workplace couldn’t be found. Refresh and try again.',
+        AppErrorKind.conflict,
+      ),
+      'workplace_inactive' => (
+        'This workplace is inactive. Reactivate it before generating a QR '
+            'code.',
+        AppErrorKind.conflict,
+      ),
       'invite_token_not_found' => (
         'This invite token isn’t valid or was already used. Ask your owner '
             'for a new one.',
@@ -201,6 +210,20 @@ AppException mapBackendError(Object error, {StackTrace? stackTrace}) {
       return AppException(
         "You don't have permission to do that.",
         kind: AppErrorKind.permission,
+        cause: error,
+      );
+    }
+    if (error.code == '23514') {
+      return AppException(
+        'Check the workplace details and try again.',
+        kind: AppErrorKind.invalidInput,
+        cause: error,
+      );
+    }
+    if (error.code == '23503') {
+      return AppException(
+        'That record no longer exists. Refresh and try again.',
+        kind: AppErrorKind.conflict,
         cause: error,
       );
     }

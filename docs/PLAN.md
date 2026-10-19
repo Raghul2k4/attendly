@@ -11,8 +11,12 @@ Concise Stage 2 plan per AGENTS.md. Living document; update as slices land.
 - **Core backend slice live and verified against the hosted project** (see below).
 - **Organisation/staff slice implemented in Flutter** (setup gate, create business,
   join with invite token, owner seat/roster view, staff invites, deactivate/
-  reactivate). 56 unit/widget tests pass; analyzer clean. Device install pending
-  until the test phone is reconnected over USB.
+  reactivate). **Verified manually on the CPH2325** against the live backend
+  (owner org creation + staff invite flow).
+- **Workplaces slice implemented**: backend QR contract live and verified over
+  REST; Flutter CRUD with OpenStreetMap map placement, geofence radius slider,
+  active toggle and the generate/replace/revoke QR flow. 68 unit/widget tests
+  pass; analyzer clean. Device verification pending.
 
 ## Architecture decisions
 
@@ -33,8 +37,9 @@ Concise Stage 2 plan per AGENTS.md. Living document; update as slices land.
 - Post-auth routing: `/home` is an account gate driven by `myAccountProvider`
   (membership + org + plan). It renders setup choices, owner dashboard, employee
   home or "access paused" — no client-side role flags.
-- Android: `minSdk 24`, `INTERNET` permission only (foreground location permission
-  added in the geofence slice).
+- Android: `minSdk 24`; `INTERNET` plus foreground `ACCESS_COARSE_LOCATION` /
+  `ACCESS_FINE_LOCATION` (marker placement now, punch validation later). No
+  background location.
 
 ## Backend model (live)
 
@@ -63,6 +68,16 @@ Migrations (`supabase/migrations/`):
   access to the organisation's identity only (name/timezone/plan), so the app can
   show an honest "access paused" state. Workplaces/settings stay restricted to
   invited/active members.
+- `20261019150839_workplace_qr_codes.sql` — `workplace_qr_tokens` (id, workplace,
+  org, `token_hash` unique, created_by, revoked_at); partial unique index keeps at
+  most one live token per workplace; RLS enabled with **no client policies** and
+  all table grants revoked, so hashes are unreadable. Owner-checked definer RPCs:
+  `generate_workplace_qr(org, workplace)` → full payload `attendance:workplace:v1:
+  <20-symbol token>` exactly once (replaces any live token under an advisory lock,
+  audited); `revoke_workplace_qr(org, workplace)`; `list_workplace_qr_statuses(org)`
+  returns only `(workplace_id, created_at)` for live tokens. A trigger audits
+  workplace INSERT/UPDATE (`workplace_created` / `workplace_updated`) because
+  those rows are written directly under owner-only RLS.
 
 Error contract: functions raise `ATT:<code>` (P0001). Client maps codes to copy.
 Codes: `not_authenticated`, `invalid_org_name`, `unknown_plan`, `unknown_timezone`,
@@ -72,7 +87,7 @@ Codes: `not_authenticated`, `invalid_org_name`, `unknown_plan`, `unknown_timezon
 `owner_status_immutable`, `status_unchanged`, `member_not_claimed`,
 `user_active_elsewhere`, `invalid_status`, `plan_change_not_allowed`,
 `owner_change_not_allowed`, `protected_field_change_not_allowed`,
-`org_reassignment_not_allowed`.
+`org_reassignment_not_allowed`, `workplace_not_found`, `workplace_inactive`.
 
 Product invariant decided here: **one organisation per owner** (unique index,
 idempotent create returns the existing org) and **one active employee membership
@@ -99,6 +114,17 @@ temporarily disabled, then restored):
   anonymous RPC → 401.
 - audit trail counts: org created 1 + invites 17 + claims 16 + status change 1.
 
+Workplace QR suite (owner2/owner3/employee accounts, live REST):
+
+- generate → payload format `attendance:workplace:v1:XXXXX-XXXXX-XXXXX-XXXXX`; the
+  stored 64-char hash matches SHA-256 of the normalised token (verified).
+- a second generate replaces the first (status RPC stays at one live row);
+  revoke clears it; status RPC never returns hashes.
+- direct `GET workplace_qr_tokens` → 403 for an authenticated owner (revoked
+  grants + no policies).
+- inactive workplace → `ATT:workplace_inactive`; non-owner and active employee →
+  `ATT:not_org_owner`; anonymous → 401.
+
 Advisors remaining (accepted/documented):
 - 4× `authenticated_security_definer_function_executable` — intended RPC surface.
 - `auth_leaked_password_protection` — not managed by CLI 2.121; enable in dashboard.
@@ -111,8 +137,13 @@ Advisors remaining (accepted/documented):
    reactivate with reason-free confirmation (server enforces seat limits and
    guards). Unit/widget tests: `test/unit/*`, `test/widget/{create_organisation,
    join_organisation,owner_home,employee_home,invite_staff_sheet,router_redirect}_*`.
-   Remaining for this slice: install + manual verification on the test device.
-4. **Workplaces** — CRUD + flutter_map geofence UI + QR token generation/revocation.
+   Verified on the CPH2325 against the live backend.
+4. **Workplaces** — shipped: owner-only CRUD under RLS (name, map-placed
+   coordinates, 20–500 m radius in the UI, active toggle) plus the QR lifecycle
+   above. Tile source is `MapConfig.tileUrlTemplate` (public OSM for pilot only —
+   see follow-ups). Employee-visible parts arrive with attendance. Remaining:
+   install + manual verification on the test device (map tap, "use my location",
+   QR generate/replace/revoke).
 5. **Attendance** — server-side punch function (state machine + idempotency +
    geofence/accuracy validation), employee home with live duration, QR scanner flow.
 6. **Reports/History** — employee history, owner staff details, daily reports,
@@ -126,7 +157,10 @@ Advisors remaining (accepted/documented):
   used by the UI); next: distance/late/duration/state machines, attendance codes.
 - Widget: forms, loading/empty/error, role choice, a11y semantics, button states
   (auth); org create/join validation + navigation, owner roster/seat usage,
-  employee home, invite result sheet (done). 56 tests passing.
+  employee home, invite result sheet, workplaces list (empty/list/error), QR card
+  (generate/replace/revoke/inactive/error). 68 tests passing. The workplace editor
+  is not widget-tested: `flutter_map` would hit the network for tiles, so its map
+  behaviour is verified manually on device (validators cover the form inputs).
 - Router: welcome→auth→home gate transitions under fake auth stream (done).
 - Backend: versioned SQL probes in `supabase/tests/`; behavioural suite executed via
   REST against the linked project (suites A/B/C, this repo's history). No local
@@ -147,6 +181,12 @@ Advisors remaining (accepted/documented):
   token without deleting the member.
 - Employees have no pull-to-refresh on their home yet; the paused/active state is
   evaluated when the gate loads.
+- Map tiles use the public OpenStreetMap servers (`lib/core/utils/map_config.dart`)
+  which are for development/pilot only. Contract a tile provider (or self-host)
+  before release; attribution text is already rendered on the map.
+- A lost workplace QR cannot be re-displayed (hash-only storage); owners replace
+  it, which immediately invalidates the old print. No QR print/share sheet yet —
+  the payload is copyable and rendered on screen.
 
 ## Major risks / mitigations
 

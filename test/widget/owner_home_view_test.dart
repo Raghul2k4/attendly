@@ -3,11 +3,13 @@ import 'package:attendance/features/organisation/domain/organisation_models.dart
 import 'package:attendance/features/organisation/presentation/organisation_providers.dart'
     show organisationRepositoryProvider;
 import 'package:attendance/features/organisation/presentation/owner_home_view.dart';
+import 'package:attendance/features/workplaces/presentation/workplace_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/fake_organisation_repository.dart';
+import '../support/fake_workplace_repository.dart';
 import '../support/organisation_fixtures.dart';
 
 void main() {
@@ -23,7 +25,12 @@ void main() {
       );
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [organisationRepositoryProvider.overrideWithValue(fake)],
+          overrides: [
+            organisationRepositoryProvider.overrideWithValue(fake),
+            workplaceRepositoryProvider.overrideWithValue(
+              FakeWorkplaceRepository(),
+            ),
+          ],
           child: MaterialApp(
             theme: buildAppTheme(),
             home: Scaffold(body: OwnerHomeView(account: account)),
@@ -79,6 +86,11 @@ void main() {
       expect(find.text('0 of 15 used'), findsOneWidget);
       expect(find.text('No employees yet'), findsOneWidget);
       expect(find.text('Add staff'), findsOneWidget);
+      expect(find.text('Workplaces'), findsOneWidget);
+      expect(
+        find.text('Add your first location and check-in radius'),
+        findsOneWidget,
+      );
     });
   });
 }

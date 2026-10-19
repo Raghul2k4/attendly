@@ -45,6 +45,13 @@ class Validators {
     return null;
   }
 
+  static String? workplaceName(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'Give this workplace a name.';
+    if (v.length > 80) return 'Keep the name under 80 characters.';
+    return null;
+  }
+
   /// Alphabet used by the server for invite tokens. Excludes I, L and O to
   /// keep codes unambiguous when read from paper or chat.
   static final _tokenAlphabet = RegExp(
