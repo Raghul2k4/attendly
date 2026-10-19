@@ -25,11 +25,22 @@ Until real Supabase values are provided, the app deliberately boots into a
 ```bash
 npx supabase login
 npx supabase link --project-ref <ref>
-npx supabase db push        # applies supabase/migrations/*
-npx supabase test db        # pgTAP tests (requires Docker locally)
+npx supabase db push                # applies supabase/migrations/*
+npx supabase db advisors --linked   # security/performance lint on the linked project
+npx supabase db query --linked --file supabase/tests/probes_core_schema.sql
+npx supabase config diff            # review before config push (never blank-push)
+npx supabase test db                # pgTAP tests (requires Docker locally)
 ```
 
-Migrations are version-controlled under `supabase/migrations/` (added in the DB slice).
+Migrations are version-controlled under `supabase/migrations/`; read-only SQL probes
+live in `supabase/tests/`. Behavioural checks against the live API were run as REST
+suites (documented in `docs/PLAN.md`); scripts that create throwaway accounts must
+pace auth calls (signup rate limit).
+
+Auth emails must point at a URL that works on a phone; `supabase/config.toml` holds
+the deep-link `site_url` (`com.techloft.attendance://login-callback`) and is aligned
+with the live project — always `config diff` first, and expect two dashboard-owned
+pooler settings to show as permanent diffs.
 
 ## Checks
 
