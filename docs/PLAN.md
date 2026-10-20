@@ -392,6 +392,11 @@ Release build (20 Oct, local):
   `versionName 1.0.0` and package `com.techloft.attendance`.
 - `jarsigner -verify -verbose -certs` showed every entry signed with
   `CN=Techloft Attendance` (the generated upload key, valid to 2054-03-07).
+- the debug APK was rebuilt and installed over the existing app
+  (`lastUpdateTime` 21:30, `firstInstallTime` unchanged, version 1.0.0), so the
+  signed-in owner session survived the upgrade. The phone was locked at the
+  time, so the Account screen, privacy policy and a real account deletion still
+  need an attended device pass (tracked in slice 9).
 
 ## Next slices
 
