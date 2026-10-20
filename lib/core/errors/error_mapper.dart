@@ -151,9 +151,33 @@ AppException mapBackendError(Object error, {StackTrace? stackTrace}) {
         AppErrorKind.conflict,
       ),
       'workplace_inactive' => (
-        'This workplace is inactive. Reactivate it before generating a QR '
-            'code.',
+        'This workplace is inactive. Ask your owner to reactivate it.',
         AppErrorKind.conflict,
+      ),
+      'not_active_employee' => (
+        'Your employee access isn’t active. Ask your owner to reactivate you.',
+        AppErrorKind.permission,
+      ),
+      'attendance_not_configured' => (
+        'Attendance isn’t set up for this business yet. Ask your owner to '
+            'finish setup.',
+        AppErrorKind.server,
+      ),
+      'method_disabled' => (
+        'Your owner has turned off this attendance method.',
+        AppErrorKind.permission,
+      ),
+      'rate_limited' => (
+        'Too many punch attempts. Wait a minute, then try again.',
+        AppErrorKind.conflict,
+      ),
+      'punch_conflict' => (
+        'This punch was already recorded. Refresh to see your current status.',
+        AppErrorKind.conflict,
+      ),
+      'invalid_event_type' || 'invalid_method' || 'invalid_idempotency_key' => (
+        'We couldn’t record this punch. Update the app and try again.',
+        AppErrorKind.server,
       ),
       'invite_token_not_found' => (
         'This invite token isn’t valid or was already used. Ask your owner '

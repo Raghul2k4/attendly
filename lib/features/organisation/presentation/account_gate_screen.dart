@@ -9,8 +9,8 @@ import '../../../core/widgets/app_choice_card.dart';
 import '../../../core/widgets/app_error_panel.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../auth/presentation/sign_out_button.dart';
+import '../../attendance/presentation/employee_home_view.dart';
 import '../domain/organisation_models.dart';
-import 'employee_home_view.dart';
 import 'organisation_providers.dart';
 import 'owner_home_view.dart';
 

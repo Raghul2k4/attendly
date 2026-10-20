@@ -15,13 +15,22 @@ Concise Stage 2 plan per AGENTS.md. Living document; update as slices land.
   (owner org creation + staff invite flow).
 - **Workplaces slice implemented**: backend QR contract live and verified over
   REST; Flutter CRUD with OpenStreetMap map placement, geofence radius slider,
-  active toggle and the generate/replace/revoke QR flow. 68 unit/widget tests
-  pass; analyzer clean. Device verification pending.
+  active toggle and the generate/replace/revoke QR flow. Device verified on the
+  CPH2325.
+- **Attendance punch backend live and verified**: sessions/events schema, RLS,
+  server clock, organisation-timezone work dates, Haversine geofence, accuracy
+  threshold, idempotency, per-member locking, rate limiting, overnight
+  punch-out, app and QR punch paths. Employee home rebuilt around the real
+  server state with foreground location, one contextual action, live duration,
+  specific rejection copy and no optimistic success. 92 unit/widget tests pass;
+  analyzer clean. QR scanner UI and owner attendance controls are the next
+  increments.
 
 ## Architecture decisions
 
-- Feature-first layout: `lib/app` (shell/theme/router), `lib/core` (errors, widgets,
-  utils, env), `lib/features/{auth,onboarding,dashboard,...}`.
+- Feature-first layout: `lib/app` (shell/theme/router), `lib/core` (errors, location,
+  widgets, utils, env), `lib/features/{auth,onboarding,organisation,workplaces,
+  attendance,...}`.
 - State: **Riverpod 3** (`Notifier` + providers). Navigation: **go_router** with
   `refreshListenable` bridge from the auth controller.
 - Auth: Supabase email/password. Email confirmation handled honestly
@@ -38,8 +47,8 @@ Concise Stage 2 plan per AGENTS.md. Living document; update as slices land.
   (membership + org + plan). It renders setup choices, owner dashboard, employee
   home or "access paused" — no client-side role flags.
 - Android: `minSdk 24`; `INTERNET` plus foreground `ACCESS_COARSE_LOCATION` /
-  `ACCESS_FINE_LOCATION` (marker placement now, punch validation later). No
-  background location.
+  `ACCESS_FINE_LOCATION` (workplace placement and punch validation). No
+  background location. Camera permission will be added with the QR scanner.
 
 ## Backend model (live)
 
@@ -78,6 +87,33 @@ Migrations (`supabase/migrations/`):
   returns only `(workplace_id, created_at)` for live tokens. A trigger audits
   workplace INSERT/UPDATE (`workplace_created` / `workplace_updated`) because
   those rows are written directly under owner-only RLS.
+- `20261019235749_attendance_punch.sql` — attendance pipeline:
+  - `attendance_sessions` (`organisation_id`, `member_id`, `workplace_id`,
+    `work_date`, `check_in_at`, `check_out_at`) with unique
+    `(organisation_id, member_id, work_date)` and a partial unique open-session
+    index; indexes for org/member history.
+  - Append-only `attendance_events` for accepted **and rejected** attempts
+    (method, server time, coordinates, accuracy, computed distance, result,
+    reason, idempotency key). Unique `(member_id, idempotency_key)`.
+  - RLS: employees read only their own sessions/events; owners read all sessions/
+    events in their organisation. No client INSERT/UPDATE/DELETE grants.
+  - `private.distance_meters` Haversine helper (not client-callable).
+  - `get_attendance_state(org)` → `{server_time, work_date, timezone, state,
+    session, workplace, settings}`. State is `not_started | checked_in |
+    completed`; `session` carries server timestamps plus `HH:mm` local strings
+    formatted in the organisation timezone.
+  - `punch_attendance(org, event_type, method, lat, lng, accuracy,
+    idempotency_key, workplace?, qr_payload?)` → structured event result. It
+    locks per member, enforces member/method/workplace/state/geofence/accuracy,
+    logs rejected attempts, replays an existing idempotency key unchanged, and
+    closes an open session even if it started on an earlier local date.
+  - Rejections: `outside_geofence`, `location_accuracy_too_low`,
+    `invalid_location`, `invalid_qr`, `workplace_inactive`,
+    `workplace_not_found`, `no_workplace`, `already_checked_in`,
+    `not_checked_in`, `already_completed_today`.
+- `20261020000600_fix_qr_prefix.sql` — corrective migration for the QR payload
+  prefix length (24, not 25) found during live verification; replaces only the
+  punch function so the original applied migration remains auditable.
 
 Error contract: functions raise `ATT:<code>` (P0001). Client maps codes to copy.
 Codes: `not_authenticated`, `invalid_org_name`, `unknown_plan`, `unknown_timezone`,
@@ -87,7 +123,10 @@ Codes: `not_authenticated`, `invalid_org_name`, `unknown_plan`, `unknown_timezon
 `owner_status_immutable`, `status_unchanged`, `member_not_claimed`,
 `user_active_elsewhere`, `invalid_status`, `plan_change_not_allowed`,
 `owner_change_not_allowed`, `protected_field_change_not_allowed`,
-`org_reassignment_not_allowed`, `workplace_not_found`, `workplace_inactive`.
+`org_reassignment_not_allowed`, `workplace_not_found`, `workplace_inactive`,
+`invalid_event_type`, `invalid_method`, `invalid_idempotency_key`,
+`not_active_employee`, `attendance_not_configured`, `method_disabled`,
+`rate_limited`, `punch_conflict`.
 
 Product invariant decided here: **one organisation per owner** (unique index,
 idempotent create returns the existing org) and **one active employee membership
@@ -125,6 +164,32 @@ Workplace QR suite (owner2/owner3/employee accounts, live REST):
 - inactive workplace → `ATT:workplace_inactive`; non-owner and active employee →
   `ATT:not_org_owner`; anonymous → 401.
 
+Attendance punch suite (Test Org A employee/owner, live REST; test rows removed):
+
+- outside geofence (≈1.1 km from a 100 m workplace) → structured rejection
+  `outside_geofence` with server-computed distance; session unchanged.
+- accuracy above the server threshold → `location_accuracy_too_low`.
+- inside punch-in → accepted, server `check_in_at` and `check_in_time` in the
+  organisation timezone; inside punch-out closes the session; state moves
+  `not_started → checked_in → completed`.
+- idempotency: same key replayed returns the original event id; concurrent
+  same-key requests return one event and one session.
+- concurrent different-key punch-ins: exactly one accepted, the other
+  `already_checked_in`; one open session.
+- rejected outside punch-out leaves the session open; a later inside punch-out
+  completes it.
+- QR path: invalid token → `invalid_qr`; valid generated token accepted;
+  replacement revokes the old token; revoke rejects the current token.
+- app method disabled → `ATT:method_disabled`; 10 rejected attempts in 60s →
+  11th `ATT:rate_limited` with only 10 logged events.
+- previous-day open session (overnight) → state still `checked_in`; punch-out
+  closes it while preserving the original `work_date`.
+- employee sees only own session/events; owner sees org rows; cross-organisation
+  state call → `ATT:not_active_employee`; direct session INSERT and UPDATE from
+  the employee client are denied.
+- QR prefix bug found and fixed by `20261020000600_fix_qr_prefix.sql`, then the
+  full QR path re-verified.
+
 Advisors remaining (accepted/documented):
 - 4× `authenticated_security_definer_function_executable` — intended RPC surface.
 - `auth_leaked_password_protection` — not managed by CLI 2.121; enable in dashboard.
@@ -144,8 +209,10 @@ Advisors remaining (accepted/documented):
    see follow-ups). Employee-visible parts arrive with attendance. Remaining:
    install + manual verification on the test device (map tap, "use my location",
    QR generate/replace/revoke).
-5. **Attendance** — server-side punch function (state machine + idempotency +
-   geofence/accuracy validation), employee home with live duration, QR scanner flow.
+5. **Attendance** — backend + employee app-button flow shipped: server state,
+   geofenced app punch, live duration, rejection evidence/copy, idempotency and
+   overnight close. Remaining: QR scanner UI (backend verified), owner
+   attendance settings screen, and device walkthrough with an employee account.
 6. **Reports/History** — employee history, owner staff details, daily reports,
    CSV export with formula-injection sanitization.
 7. **Corrections & audit** — reason-required adjustments preserving originals.
@@ -154,17 +221,22 @@ Advisors remaining (accepted/documented):
 ## Testing strategy
 
 - Unit: validators, auth + backend error mapping (done, incl. every `ATT:*` code
-  used by the UI); next: distance/late/duration/state machines, attendance codes.
+  used by the UI); attendance JSON parsing, state→action, duration/timer/
+  distance formatting and rejection copy (done). Next: late-arrival rules and
+  reports once implemented.
 - Widget: forms, loading/empty/error, role choice, a11y semantics, button states
   (auth); org create/join validation + navigation, owner roster/seat usage,
-  employee home, invite result sheet, workplaces list (empty/list/error), QR card
-  (generate/replace/revoke/inactive/error). 68 tests passing. The workplace editor
+  invite result sheet, workplaces list (empty/list/error), QR card
+  (generate/replace/revoke/inactive/error); employee home (not started,
+  checked in, complete, accepted refresh, outside rejection, permission denial,
+  methods disabled, server error/retry). 92 tests passing. The workplace editor
   is not widget-tested: `flutter_map` would hit the network for tiles, so its map
   behaviour is verified manually on device (validators cover the form inputs).
 - Router: welcome→auth→home gate transitions under fake auth stream (done).
-- Backend: versioned SQL probes in `supabase/tests/`; behavioural suite executed via
-  REST against the linked project (suites A/B/C, this repo's history). No local
-  Postgres available, so pgTAP runs are deferred until an environment has Docker.
+- Backend: versioned SQL probes in `supabase/tests/`; behavioural suites executed
+  via REST against the linked project (suites A/B/C plus the attendance suite
+  above). No local Postgres available, so pgTAP runs are deferred until an
+  environment has Docker.
 
 ## Known cleanup / ops follow-ups
 
@@ -179,14 +251,25 @@ Advisors remaining (accepted/documented):
 - The one-time invite token cannot be re-read after creation (hash-only storage).
   A re-issue/rotate flow is required before beta so owners can recover a lost
   token without deleting the member.
-- Employees have no pull-to-refresh on their home yet; the paused/active state is
-  evaluated when the gate loads.
+- Employees now get pull-to-refresh on their attendance home; the paused/active
+  state is evaluated when the gate loads. A deactivated employee keeps the last
+  attendance view until reload, but every punch is re-authorized server-side.
+- Attendance app-button flow is complete; QR scanning UI is not. If an owner
+  enables QR-only attendance in the database, the employee screen explains that
+  app punching is off instead of showing a dead scanner button. Implement the
+  scanner before exposing QR controls to owners.
+- Attendance settings have no owner UI yet; defaults are app punch on, QR off,
+  Mon–Fri 09:00 with 10-minute grace and 50 m accuracy. The punch path uses these
+  server values, but late-arrival classification is not shown yet.
 - Map tiles use the public OpenStreetMap servers (`lib/core/utils/map_config.dart`)
   which are for development/pilot only. Contract a tile provider (or self-host)
   before release; attribution text is already rendered on the map.
 - A lost workplace QR cannot be re-displayed (hash-only storage); owners replace
   it, which immediately invalidates the old print. No QR print/share sheet yet —
   the payload is copyable and rendered on screen.
+- Attendance screens have no owner reports/history yet; sessions/events are
+  already indexed for those queries. Owner dashboard attendance counts still need
+  to be added from real records.
 
 ## Major risks / mitigations
 

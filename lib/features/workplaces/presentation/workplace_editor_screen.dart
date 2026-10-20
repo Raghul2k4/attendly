@@ -16,7 +16,7 @@ import '../../../core/widgets/app_error_panel.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../organisation/domain/organisation_models.dart';
 import '../../organisation/presentation/organisation_providers.dart';
-import '../../organisation/presentation/widgets/surface_card.dart';
+import '../../../core/widgets/surface_card.dart';
 import '../domain/workplace_models.dart';
 import 'widgets/workplace_map.dart';
 import 'widgets/workplace_qr_card.dart';

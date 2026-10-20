@@ -21,6 +21,7 @@ dependencies:
   riverpod: ^3.4.3
   supabase: ^2.16.5
   supabase_flutter: ^2.18.3
+  uuid: ^4.6.0
 
 dev_dependencies:
   flutter_test:

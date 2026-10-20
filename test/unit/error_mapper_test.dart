@@ -133,6 +133,30 @@ void main() {
       expect(mapped.message, contains('workplace details'));
     });
 
+    test('inactive employee access maps to permission', () {
+      final mapped = mapBackendError(att('not_active_employee'));
+      expect(mapped.kind, AppErrorKind.permission);
+      expect(mapped.message, contains('reactivate'));
+    });
+
+    test('disabled attendance method is specific', () {
+      final mapped = mapBackendError(att('method_disabled'));
+      expect(mapped.kind, AppErrorKind.permission);
+      expect(mapped.message, contains('turned off'));
+    });
+
+    test('punch rate limiting asks for a short wait', () {
+      final mapped = mapBackendError(att('rate_limited'));
+      expect(mapped.kind, AppErrorKind.conflict);
+      expect(mapped.message, contains('Wait a minute'));
+    });
+
+    test('punch conflicts tell the employee to refresh', () {
+      final mapped = mapBackendError(att('punch_conflict'));
+      expect(mapped.kind, AppErrorKind.conflict);
+      expect(mapped.message, contains('already recorded'));
+    });
+
     test('app exceptions pass through unchanged', () {
       const original = AppException('Keep this.', kind: AppErrorKind.conflict);
       expect(identical(original, mapBackendError(original)), isTrue);

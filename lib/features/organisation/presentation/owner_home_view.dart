@@ -11,8 +11,8 @@ import '../domain/organisation_models.dart';
 import 'organisation_providers.dart';
 import 'widgets/invite_staff_sheet.dart';
 import 'widgets/member_sheet.dart';
+import '../../../core/widgets/surface_card.dart';
 import 'widgets/status_chips.dart';
-import 'widgets/surface_card.dart';
 
 /// Owner dashboard: organisation identity, real seat usage and the live staff
 /// roster. Attendance metrics land with the attendance slice — this screen

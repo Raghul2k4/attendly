@@ -10,7 +10,7 @@ import '../../../../core/widgets/app_error_panel.dart';
 import '../../domain/organisation_models.dart';
 import '../organisation_providers.dart';
 import 'status_chips.dart';
-import 'surface_card.dart';
+import '../../../../core/widgets/surface_card.dart';
 
 /// Owner actions for one member. Status changes go through the server RPC
 /// (seat limits, guards and audit all live there); this sheet only confirms

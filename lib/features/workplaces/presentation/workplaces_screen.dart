@@ -9,7 +9,7 @@ import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_error_panel.dart';
 import '../../organisation/presentation/organisation_providers.dart';
-import '../../organisation/presentation/widgets/surface_card.dart';
+import '../../../core/widgets/surface_card.dart';
 import '../domain/workplace_models.dart';
 import 'workplace_providers.dart';
 
