@@ -6,6 +6,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_dimensions.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/widgets/app_error_panel.dart';
+import '../../attendance/presentation/attendance_providers.dart';
 import '../../workplaces/presentation/workplace_providers.dart';
 import '../domain/organisation_models.dart';
 import 'organisation_providers.dart';
@@ -110,6 +111,25 @@ class _OwnerDashboard extends ConsumerWidget {
       error: (error, stackTrace) =>
           'Set locations, check-in radius and QR codes',
     );
+    final attendanceSettings = ref.watch(
+      attendanceSettingsProvider(organisation.id),
+    );
+    final attendanceSummary = attendanceSettings.when(
+      data: (settings) {
+        final methods = settings.appPunchEnabled && settings.qrPunchEnabled
+            ? 'App + QR'
+            : settings.qrPunchEnabled
+            ? 'QR code'
+            : settings.appPunchEnabled
+            ? 'App button'
+            : 'No method enabled';
+        return '$methods · ${_workingDaysLabel(settings.workingDays)} · '
+            '${settings.startTime} start';
+      },
+      loading: () => 'Methods, workdays, start time and late grace',
+      error: (error, stackTrace) =>
+          'Review methods, workdays and lateness rules',
+    );
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -191,7 +211,19 @@ class _OwnerDashboard extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
-        _WorkplacesEntry(subtitle: workplaceSummary),
+        _DashboardEntry(
+          icon: Icons.place_outlined,
+          title: 'Workplaces',
+          subtitle: workplaceSummary,
+          onTap: () => context.push('/workplaces'),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        _DashboardEntry(
+          icon: Icons.fact_check_outlined,
+          title: 'Attendance rules',
+          subtitle: attendanceSummary,
+          onTap: () => context.push('/attendance-settings'),
+        ),
         const SizedBox(height: AppSpacing.xl),
         Row(
           children: [
@@ -238,10 +270,18 @@ class _OwnerDashboard extends ConsumerWidget {
   }
 }
 
-class _WorkplacesEntry extends StatelessWidget {
-  const _WorkplacesEntry({required this.subtitle});
+class _DashboardEntry extends StatelessWidget {
+  const _DashboardEntry({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
 
+  final IconData icon;
+  final String title;
   final String subtitle;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -250,7 +290,7 @@ class _WorkplacesEntry extends StatelessWidget {
       color: AppColors.surface,
       borderRadius: BorderRadius.circular(AppRadius.lg),
       child: InkWell(
-        onTap: () => context.push('/workplaces'),
+        onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         child: Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
@@ -267,17 +307,14 @@ class _WorkplacesEntry extends StatelessWidget {
                   color: AppColors.emerald50,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
-                child: const Icon(
-                  Icons.place_outlined,
-                  color: AppColors.emerald700,
-                ),
+                child: Icon(icon, color: AppColors.emerald700),
               ),
               const SizedBox(width: AppSpacing.lg),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Workplaces', style: textTheme.titleSmall),
+                    Text(title, style: textTheme.titleSmall),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
                       subtitle,
@@ -300,6 +337,20 @@ class _WorkplacesEntry extends StatelessWidget {
       ),
     );
   }
+}
+
+String _workingDaysLabel(Set<int> days) {
+  if (days.isEmpty) return 'No working days';
+  if (days.length == 7) return 'Every day';
+  if (days.length == 5 && days.containsAll(const {1, 2, 3, 4, 5})) {
+    return 'Mon–Fri';
+  }
+  if (days.length == 6 && days.containsAll(const {1, 2, 3, 4, 5, 6})) {
+    return 'Mon–Sat';
+  }
+  const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  final sorted = days.toList()..sort();
+  return sorted.map((day) => labels[day - 1]).join(', ');
 }
 
 class _StaffTile extends StatelessWidget {

@@ -22,9 +22,14 @@ Concise Stage 2 plan per AGENTS.md. Living document; update as slices land.
   threshold, idempotency, per-member locking, rate limiting, overnight
   punch-out, app and QR punch paths. Employee home rebuilt around the real
   server state with foreground location, one contextual action, live duration,
-  specific rejection copy and no optimistic success. 92 unit/widget tests pass;
-  analyzer clean. QR scanner UI and owner attendance controls are the next
-  increments.
+  specific rejection copy and no optimistic success.
+- **Attendance QR + owner rules implemented**: camera scanner with permission/
+  error states and local payload gating, method-aware employee actions, stored
+  late-arrival classification, and the owner screen for methods, working days,
+  start time, grace and GPS accuracy. 113 unit/widget tests pass; analyzer
+  clean. Live REST verified settings write + audit and insert-time lateness.
+  Device walkthrough is pending because the Android phone was disconnected
+  during the final build.
 
 ## Architecture decisions
 
@@ -48,7 +53,8 @@ Concise Stage 2 plan per AGENTS.md. Living document; update as slices land.
   home or "access paused" — no client-side role flags.
 - Android: `minSdk 24`; `INTERNET` plus foreground `ACCESS_COARSE_LOCATION` /
   `ACCESS_FINE_LOCATION` (workplace placement and punch validation). No
-  background location. Camera permission will be added with the QR scanner.
+  background location. `CAMERA` is requested only when the employee opens the
+  scanner; camera hardware is optional so app-only organisations can install.
 
 ## Backend model (live)
 
@@ -114,6 +120,12 @@ Migrations (`supabase/migrations/`):
 - `20261020000600_fix_qr_prefix.sql` — corrective migration for the QR payload
   prefix length (24, not 25) found during live verification; replaces only the
   punch function so the original applied migration remains auditable.
+- `20261020000700_attendance_rules.sql` — adds `attendance_sessions.is_late`.
+  A before-insert trigger classifies lateness once from the organisation
+  timezone, working days, start time and grace period in force at check-in, so
+  later policy edits cannot rewrite history. The session JSON gains `is_late`.
+  An `AFTER UPDATE` trigger audits every owner policy change with the acting
+  user, target and timestamp.
 
 Error contract: functions raise `ATT:<code>` (P0001). Client maps codes to copy.
 Codes: `not_authenticated`, `invalid_org_name`, `unknown_plan`, `unknown_timezone`,
@@ -190,6 +202,16 @@ Attendance punch suite (Test Org A employee/owner, live REST; test rows removed)
 - QR prefix bug found and fixed by `20261020000600_fix_qr_prefix.sql`, then the
   full QR path re-verified.
 
+Attendance rules suite (live REST + transactional SQL probe, 20 Oct):
+
+- owner settings read/write accepted; the change produced an
+  `attendance_settings_updated` audit row naming the acting owner;
+- an employee settings write changed 0 rows and left the policy intact;
+- original GPS-accuracy value restored after the probe;
+- insert probe: Monday 10:30 check-in → `is_late = true`; Saturday 10:30 →
+  `false` (transaction rolled back, no test sessions left behind);
+- an existing session JSON now includes `is_late`; the session was not altered.
+
 Advisors remaining (accepted/documented):
 - 4× `authenticated_security_definer_function_executable` — intended RPC surface.
 - `auth_leaked_password_protection` — not managed by CLI 2.121; enable in dashboard.
@@ -206,13 +228,13 @@ Advisors remaining (accepted/documented):
 4. **Workplaces** — shipped: owner-only CRUD under RLS (name, map-placed
    coordinates, 20–500 m radius in the UI, active toggle) plus the QR lifecycle
    above. Tile source is `MapConfig.tileUrlTemplate` (public OSM for pilot only —
-   see follow-ups). Employee-visible parts arrive with attendance. Remaining:
-   install + manual verification on the test device (map tap, "use my location",
-   QR generate/replace/revoke).
-5. **Attendance** — backend + employee app-button flow shipped: server state,
-   geofenced app punch, live duration, rejection evidence/copy, idempotency and
-   overnight close. Remaining: QR scanner UI (backend verified), owner
-   attendance settings screen, and device walkthrough with an employee account.
+   see follow-ups). Remaining: owner confirmation of the location-permission
+   guidance on the test device.
+5. **Attendance** — shipped: server state, geofenced app punch, QR scanner,
+   method-aware employee actions, live duration, stored late classification,
+   rejection evidence/copy, idempotency, overnight close, and the owner rules
+   screen. Remaining: device walkthrough for camera/QR permissions and the
+   owner settings form (phone disconnected during the final build).
 6. **Reports/History** — employee history, owner staff details, daily reports,
    CSV export with formula-injection sanitization.
 7. **Corrections & audit** — reason-required adjustments preserving originals.
@@ -221,22 +243,24 @@ Advisors remaining (accepted/documented):
 ## Testing strategy
 
 - Unit: validators, auth + backend error mapping (done, incl. every `ATT:*` code
-  used by the UI); attendance JSON parsing, state→action, duration/timer/
-  distance formatting and rejection copy (done). Next: late-arrival rules and
-  reports once implemented.
+  used by the UI); attendance JSON parsing (including stored `is_late` and
+  `HH:mm:ss` settings rows), state→action, QR payload shape, duration/timer/
+  distance formatting and rejection copy (done). Next: reports/history rules.
 - Widget: forms, loading/empty/error, role choice, a11y semantics, button states
   (auth); org create/join validation + navigation, owner roster/seat usage,
   invite result sheet, workplaces list (empty/list/error), QR card
   (generate/replace/revoke/inactive/error); employee home (not started,
   checked in, complete, accepted refresh, outside rejection, permission denial,
-  methods disabled, server error/retry). 92 tests passing. The workplace editor
-  is not widget-tested: `flutter_map` would hit the network for tiles, so its map
-  behaviour is verified manually on device (validators cover the form inputs).
+  methods disabled, server error/retry, QR scan submission, late badge); owner
+  attendance rules (load, method/day validation, save, save failure, employee
+  denial). 113 tests passing. The workplace editor and camera scanner are not
+  widget-tested: they need a network map / real camera plugin, so those paths
+  are verified manually on device (validators/parser cover the pure logic).
 - Router: welcome→auth→home gate transitions under fake auth stream (done).
 - Backend: versioned SQL probes in `supabase/tests/`; behavioural suites executed
-  via REST against the linked project (suites A/B/C plus the attendance suite
-  above). No local Postgres available, so pgTAP runs are deferred until an
-  environment has Docker.
+  via REST against the linked project (suites A/B/C, attendance/QR, and
+  attendance-rules audit/lateness above). No local Postgres available, so pgTAP
+  runs are deferred until an environment has Docker.
 
 ## Known cleanup / ops follow-ups
 
@@ -254,13 +278,14 @@ Advisors remaining (accepted/documented):
 - Employees now get pull-to-refresh on their attendance home; the paused/active
   state is evaluated when the gate loads. A deactivated employee keeps the last
   attendance view until reload, but every punch is re-authorized server-side.
-- Attendance app-button flow is complete; QR scanning UI is not. If an owner
-  enables QR-only attendance in the database, the employee screen explains that
-  app punching is off instead of showing a dead scanner button. Implement the
-  scanner before exposing QR controls to owners.
-- Attendance settings have no owner UI yet; defaults are app punch on, QR off,
-  Mon–Fri 09:00 with 10-minute grace and 50 m accuracy. The punch path uses these
-  server values, but late-arrival classification is not shown yet.
+- The QR scanner and owner attendance-rules screen are implemented and tested,
+  but the camera/permission walkthrough and the settings form have not been
+  exercised on the Android device yet (phone disconnected during the final
+  build). QR attendance remains off for Techloft until the owner enables it in
+  Attendance rules.
+- Techloft's Main Shop still has one live QR token generated before the scanner
+  UI. If its print is unavailable, generate a replacement from Workplaces; the
+  old print stops working immediately.
 - Map tiles use the public OpenStreetMap servers (`lib/core/utils/map_config.dart`)
   which are for development/pilot only. Contract a tile provider (or self-host)
   before release; attribution text is already rendered on the map.

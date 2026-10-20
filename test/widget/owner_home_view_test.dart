@@ -1,4 +1,5 @@
 import 'package:attendance/app/theme/app_theme.dart';
+import 'package:attendance/features/attendance/presentation/attendance_providers.dart';
 import 'package:attendance/features/organisation/domain/organisation_models.dart';
 import 'package:attendance/features/organisation/presentation/organisation_providers.dart'
     show organisationRepositoryProvider;
@@ -8,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/fake_attendance_settings_repository.dart';
 import '../support/fake_organisation_repository.dart';
 import '../support/fake_workplace_repository.dart';
 import '../support/organisation_fixtures.dart';
@@ -19,6 +21,11 @@ void main() {
       required MyAccount account,
       required List<Membership> members,
     }) async {
+      tester.view.physicalSize = const Size(1080, 3600);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       final fake = FakeOrganisationRepository(
         account: account,
         members: members,
@@ -29,6 +36,9 @@ void main() {
             organisationRepositoryProvider.overrideWithValue(fake),
             workplaceRepositoryProvider.overrideWithValue(
               FakeWorkplaceRepository(),
+            ),
+            attendanceSettingsRepositoryProvider.overrideWithValue(
+              FakeAttendanceSettingsRepository(),
             ),
           ],
           child: MaterialApp(
@@ -41,11 +51,6 @@ void main() {
     }
 
     testWidgets('shows real seat usage and the staff roster', (tester) async {
-      tester.view.physicalSize = const Size(1080, 3000);
-      tester.view.devicePixelRatio = 3;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
       final owner = testOwnerAccount();
       final members = [
         owner.membership,
@@ -87,10 +92,12 @@ void main() {
       expect(find.text('No employees yet'), findsOneWidget);
       expect(find.text('Add staff'), findsOneWidget);
       expect(find.text('Workplaces'), findsOneWidget);
+      expect(find.text('Attendance rules'), findsOneWidget);
       expect(
         find.text('Add your first location and check-in radius'),
         findsOneWidget,
       );
+      expect(find.textContaining('App button'), findsOneWidget);
     });
   });
 }

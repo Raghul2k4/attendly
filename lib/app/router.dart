@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/auth_controller.dart';
 import '../features/auth/presentation/sign_in_screen.dart';
 import '../features/auth/presentation/sign_up_screen.dart';
+import '../features/attendance/presentation/attendance_settings_screen.dart';
 import '../features/onboarding/domain/user_role.dart';
 import '../features/onboarding/welcome_screen.dart';
 import '../features/organisation/presentation/account_gate_screen.dart';
@@ -87,6 +88,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
       GoRoute(
+        path: '/attendance-settings',
+        name: 'attendance-settings',
+        builder: (_, _) => const AttendanceSettingsScreen(),
+      ),
+      GoRoute(
         path: '/setup/create-organisation',
         name: 'create-organisation',
         builder: (_, _) => const CreateOrganisationScreen(),
@@ -113,6 +119,7 @@ String? _redirect(GoRouterState state, AuthState auth) {
       final isInsideApp =
           location == '/home' ||
           location.startsWith('/setup/') ||
+          location.startsWith('/attendance-settings') ||
           location.startsWith('/workplaces');
       return isInsideApp ? null : '/home';
     case AuthStatus.signedOut:
