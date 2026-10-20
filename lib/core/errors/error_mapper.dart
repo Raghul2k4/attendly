@@ -212,6 +212,14 @@ AppException mapBackendError(Object error, {StackTrace? stackTrace}) {
         'That correction was already applied.',
         AppErrorKind.conflict,
       ),
+      'delete_confirm_required' => (
+        'Type DELETE exactly to confirm account deletion.',
+        AppErrorKind.invalidInput,
+      ),
+      'account_not_found' => (
+        'This account no longer exists. Sign in again.',
+        AppErrorKind.auth,
+      ),
       'attendance_session_not_found' => (
         'That attendance record couldn’t be found. Refresh and try again.',
         AppErrorKind.conflict,

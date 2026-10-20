@@ -120,6 +120,16 @@ class AuthActions {
       throw mapAuthError(e);
     }
   }
+
+  Future<void> deleteAccount() async {
+    try {
+      await _repository.deleteAccount();
+    } on AppException {
+      rethrow;
+    } catch (e) {
+      throw mapAuthError(e);
+    }
+  }
 }
 
 final authActionsProvider = Provider<AuthActions>(

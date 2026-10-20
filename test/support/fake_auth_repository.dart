@@ -13,6 +13,7 @@ class FakeAuthRepository implements AuthRepository {
     this.signUpException,
     this.signUpOutcome,
     this.signOutException,
+    this.deleteAccountException,
   });
 
   final User? initialUser;
@@ -21,6 +22,7 @@ class FakeAuthRepository implements AuthRepository {
   final Exception? signUpException;
   final SignUpOutcome? signUpOutcome;
   final Exception? signOutException;
+  final Exception? deleteAccountException;
 
   final _signInGate = <Completer<User?>>[];
 
@@ -32,6 +34,7 @@ class FakeAuthRepository implements AuthRepository {
   int signInCalls = 0;
   int signUpCalls = 0;
   int signOutCalls = 0;
+  int deleteAccountCalls = 0;
 
   bool get hasListeners => _changes.hasListener;
 
@@ -99,6 +102,13 @@ class FakeAuthRepository implements AuthRepository {
   Future<void> signOut() async {
     signOutCalls++;
     if (signOutException != null) throw signOutException!;
+    emitChange(null);
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    deleteAccountCalls++;
+    if (deleteAccountException != null) throw deleteAccountException!;
     emitChange(null);
   }
 

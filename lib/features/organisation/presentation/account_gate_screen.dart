@@ -8,7 +8,6 @@ import '../../../core/errors/app_exception.dart';
 import '../../../core/widgets/app_choice_card.dart';
 import '../../../core/widgets/app_error_panel.dart';
 import '../../auth/presentation/auth_controller.dart';
-import '../../auth/presentation/sign_out_button.dart';
 import '../../attendance/presentation/employee_home_view.dart';
 import '../domain/organisation_models.dart';
 import 'organisation_providers.dart';
@@ -27,7 +26,13 @@ class AccountGateScreen extends ConsumerWidget {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Attendance'),
-        actions: const [SignOutButton()],
+        actions: [
+          IconButton(
+            tooltip: 'Account',
+            onPressed: () => context.push('/account'),
+            icon: const Icon(Icons.person_outline_rounded),
+          ),
+        ],
       ),
       body: SafeArea(
         child: account.when(

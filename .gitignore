@@ -44,5 +44,11 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Android release signing: never commit the upload key or its passwords.
+/android/key.properties
+/android/upload-keystore.jks
+/android/*.jks
+/android/*.keystore
+
 # Widget Preview related
 .widget_preview/

@@ -1,0 +1,18 @@
+# Copy this file to android/key.properties and fill in your upload key.
+#
+# The real file and the keystore itself are gitignored. Back both up somewhere
+# safe: Google Play ties the app to this key, and losing it requires an upload
+# key reset. Never commit either file.
+#
+# Generate a key (one time, from the repository root):
+#   keytool -genkeypair -v -keystore android/upload-keystore.jks \
+#     -storetype JKS -keyalg RSA -keysize 2048 -validity 10000 \
+#     -alias upload -dname "CN=Your App, O=Your Business, C=IN"
+#
+# Then verify the signed bundle:
+#   flutter build appbundle --release
+
+storePassword=your-store-password
+keyPassword=your-key-password
+keyAlias=upload
+storeFile=../upload-keystore.jks

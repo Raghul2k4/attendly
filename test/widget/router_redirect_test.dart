@@ -46,8 +46,12 @@ void main() {
         expect(find.text('Create a business'), findsOneWidget);
         expect(find.text('Join with an invite token'), findsOneWidget);
 
-        // Explicit sign out returns to the public area.
-        await tester.tap(find.byTooltip('Sign out'));
+        // Explicit sign out lives in Account and returns to the public area.
+        await tester.tap(find.byTooltip('Account'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Privacy policy'), findsOneWidget);
+        await tester.tap(find.text('Sign out'));
         await tester.pumpAndSettle();
 
         expect(fake.signOutCalls, 1);

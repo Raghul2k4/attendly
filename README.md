@@ -2,11 +2,12 @@
 
 Premium small-business attendance app (owner + employee) — Flutter Android client
 over Supabase (Postgres + Auth + RLS). See `AGENTS.md` for the product/engineering
-contract and `docs/PLAN.md` for the live status.
+contract, `docs/PLAN.md` for the live status and `docs/PLAY_RELEASE.md` for the
+Play Store checklist.
 
 ## Setup
 
-1. Flutter 3.47+ (`flutter doctor`).
+1. Flutter 3.47+ (`flutter doctor`), Android SDK, a device or emulator.
 2. Copy `.env.example` → `.env` (a placeholder `.env` is committed) and fill:
    - `SUPABASE_URL` — your project URL
    - `SUPABASE_ANON_KEY` — publishable anon key (never service-role!)
@@ -42,6 +43,23 @@ the deep-link `site_url` (`com.techloft.attendance://login-callback`) and is ali
 with the live project — always `config diff` first, and expect two dashboard-owned
 pooler settings to show as permanent diffs.
 
+### Sensitive operations
+
+Attendance validity, staff limits, QR generation and account deletion are decided
+by `SECURITY DEFINER` Postgres functions, not by the client:
+
+- `punch_attendance(...)` — method, membership, state and geofence validation,
+  idempotency, rate limiting, per-member locking.
+- `invite_employee` / `claim_membership` / `set_member_status` — seat accounting
+  under an organisation row lock.
+- `generate_workplace_qr` / `revoke_workplace_qr` — raw tokens returned once,
+  hashes stored.
+- `correct_attendance_checkout` / `list_attendance_corrections` — owner-only,
+  reason required, original value and audit row preserved.
+- `delete_my_account(confirm)` — owner deletes the business and its records;
+  employee removes the sign-in identity, frees the seat and leaves the
+  employer's attendance records intact.
+
 ## Checks
 
 ```bash
@@ -51,18 +69,48 @@ flutter test              # unit + widget tests
 flutter build apk --debug # validates the full Android build pipeline
 ```
 
+## Release builds
+
+Release signing reads `android/key.properties` (gitignored); the upload key lives
+at `android/upload-keystore.jks` (also gitignored). **Back both up** — losing them
+after publishing requires a Play upload-key reset. When `key.properties` is
+missing, release builds fail with a clear message instead of shipping an unsigned
+or debug-signed bundle.
+
+```bash
+flutter build appbundle --release
+# → build/app/outputs/bundle/release/app-release.aab
+```
+
+The version comes from `pubspec.yaml` (`version: 1.0.0+1`): the name before `+`
+is the user-visible version, the number after it is the `versionCode` and must
+increase for every Play upload. Tag submitted builds (`v1.0.0`). The target SDK is
+supplied by Flutter and was verified as 36 in the merged release manifest; re-check
+Play's current requirement at submission time.
+
+Account deletion is available in-app under **Account → Delete account**; the
+web-facing copy for Play's deletion URL is `docs/legal/ACCOUNT_DELETION.md`, and
+the privacy policy (in-app copy plus hostable text) is
+`docs/legal/PRIVACY_POLICY.md`. Both need a monitored publisher contact and a
+public HTTPS URL before publishing.
+
 ## Project layout
 
 ```
 lib/app        theme tokens, router, app shell
-lib/core       errors, env, widgets, utils (no feature coupling)
-lib/features   auth · onboarding · dashboard · (staff, workplaces, attendance, reports next)
+lib/core       errors, env, location, widgets, utils (no feature coupling)
+lib/features   auth · onboarding · organisation · workplaces · attendance · reports
 supabase       config + versioned migrations + SQL tests
 test           unit/ · widget/ · support/ (fakes)
+tool           reproducible icon / feature-graphic generators
+docs           plan, Play release guide, legal copy, store assets
 ```
 
 ## Conventions
 
 - Colors/spacing/radii/durations only via `app/theme` tokens.
-- User-facing text: calm + specific; errors via `mapAuthError` (never raw SDK text).
-- Client never decides attendance validity; server is authoritative (from DB slice).
+- User-facing text: calm + specific; errors via `mapAuthError` / `mapBackendError`
+  (never raw SDK text).
+- Client never decides attendance validity; the server is authoritative.
+- No feature is shown as working until the server confirms it; loading, empty,
+  error and retry states are required for every async path.

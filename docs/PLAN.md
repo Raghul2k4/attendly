@@ -50,6 +50,16 @@ Concise Stage 2 plan per AGENTS.md. Living document; update as slices land.
   against the hosted project with a rolled-back probe, and the whole flow
   was walked through on the CPH2325 (open sheet → save → "Corrected" label →
   audit entry) against a temporary session that was removed afterwards.
+- **Account deletion + release prep shipped**: `delete_my_account(p_confirm)`
+  removes an owner's business and records in dependency order, or removes an
+  employee's sign-in identity while deactivating the seat and keeping the
+  employer's attendance rows (verified with a rolled-back live probe). The app
+  gained an Account screen (identity, business, privacy policy, sign out,
+  typed-`DELETE` danger zone) and a privacy policy screen. Release work: upload
+  keystore + `key.properties` (gitignored) with a loud failure when missing,
+  generated launcher icons and Play assets, `version: 1.0.0+1`, a signed AAB
+  (target SDK 36, signature verified), and the Play/Data safety/legal docs.
+  Device confirmation of account deletion and the Play Console steps remain.
 
 ## Architecture decisions
 
@@ -184,6 +194,15 @@ Migrations (`supabase/migrations/`):
   - `private.with_corrections` marks corrected records in the report/history
     payloads, so both the owner report and the employee history show a
     "Corrected" label.
+
+- `20261020001100_account_deletion.sql` — `delete_my_account(p_confirm text)`:
+  requires the caller to type `DELETE`, then deletes as the authenticated user
+  under RLS. Owners delete the organisation's records in dependency order
+  (corrections → events → sessions → QR tokens → audit → members → workplaces →
+  settings → organisation) before removing the auth identity; employees write an
+  `account_deleted` audit row, rely on the profile-delete trigger to free the
+  seat, and then delete their auth identity. An employee leaving never
+  cascade-deletes the employer's attendance history.
 
 Error contract: functions raise `ATT:<code>` (P0001). Client maps codes to copy.
 Codes: `not_authenticated`, `invalid_org_name`, `unknown_plan`, `unknown_timezone`,
@@ -349,6 +368,31 @@ Corrections on device (CPH2325, Techloft owner session, 20 Oct):
 - the temporary session, its correction and its audit row were deleted
   afterwards; the real 20 Oct session (15:37 → 15:40) was never touched.
 
+Account deletion suite (20 Oct, hosted project, rolled-back probe):
+
+- owner path: `delete_my_account('DELETE')` removed the organisation, settings,
+  workplaces, QR tokens, memberships, sessions, events, corrections and audit
+  rows in dependency order (the RESTRICT foreign keys on sessions/workplaces
+  required explicit ordering) and then deleted the auth identity.
+- employee path: the profile and auth identity were deleted, the membership row
+  stayed with `user_id = null` and status `inactive` (the profile-delete trigger
+  frees the seat), the session and its events were preserved for the employer,
+  and an `account_deleted` audit row was written.
+- a lower-case `delete` confirmation was rejected with
+  `ATT:delete_confirm_required`; after the probe the database had no fixture
+  users or organisations left.
+
+Release build (20 Oct, local):
+
+- `flutter analyze` clean; the full unit/widget suite passes (see the testing
+  strategy below for the count).
+- `flutter build appbundle --release` produced
+  `build/app/outputs/bundle/release/app-release.aab`; the merged release manifest
+  reports `minSdkVersion 24`, `targetSdkVersion 36`, `versionCode 1`,
+  `versionName 1.0.0` and package `com.techloft.attendance`.
+- `jarsigner -verify -verbose -certs` showed every entry signed with
+  `CN=Techloft Attendance` (the generated upload key, valid to 2054-03-07).
+
 ## Next slices
 
 3. ~~**Org creation + join UI (Flutter)**~~ — shipped: setup gate, owner create form
@@ -376,7 +420,34 @@ Corrections on device (CPH2325, Techloft owner session, 20 Oct):
    a required reason, the original value preserved, an `attendance_corrected`
    audit row naming the acting owner, a "Corrected" label in the report and
    history, and an owner-facing Corrections list.
-8. **Release prep** — README/Play checklist, signed bundle config, privacy copy.
+8. **Release prep (code + docs done; console/device steps open)** — everything
+   required to produce a Play-ready build:
+   - ✅ version/build-number policy documented (`1.0.0+1`, monotonic `versionCode`);
+   - ✅ signed Android App Bundle: upload keystore, gitignored
+     `key.properties`, conditional release signing that fails loudly when the
+     key is missing, `flutter build appbundle --release` verified;
+   - ✅ package id, app label, generated launcher icons, Play icon and feature
+     graphic; target SDK 36 checked in the merged release manifest;
+   - ✅ in-app account deletion: owner (deletes the business and its records) and
+     employee (removes the sign-in identity, deactivates the seat, keeps the
+     employer's attendance records) with typed confirmation and a server RPC;
+   - ✅ privacy policy text (in-app + hostable copy), account-deletion copy and
+     honest Data safety declarations derived from what the app actually stores;
+   - ✅ README, store-listing copy, screenshot list and reviewer instructions;
+   - ⬜ host the legal pages with a real publisher contact; Play Console app,
+     App content, internal-testing upload; device screenshots; on-device
+     account-deletion check.
+9. **Operational & device hardening (after slice 8)** — the follow-ups that need
+   a phone, a dashboard setting or a commercial decision:
+   - QR scanner + owner attendance-rules device walkthrough (camera/permission);
+   - production map tile provider contract (public OSM is pilot-only);
+   - invite-token re-issue/rotate so a lost token never requires deleting staff;
+   - delete the `att-test-*@example.com` throwaway accounts;
+   - enable leaked-password protection in Supabase Auth;
+   - Realtime updates for the owner dashboard (or an explicit decision to keep
+     refresh-only for 1.0);
+   - location/attendance retention & deletion policy, including a scheduled
+     purge where the policy requires one.
 
 ## Testing strategy
 
@@ -397,7 +468,9 @@ Corrections on device (CPH2325, Techloft owner session, 20 Oct):
   labelling, empty, error/retry, owner denial); owner report (summary, preset
   dates, employee filter, empty, error/retry, employee denial) and the owner
   dashboard overview (metrics, checked-in list, recent activity, unresolved
-  prior sessions, overview failure). 171 tests passing. The workplace editor
+  prior sessions, overview failure), the account screen (identity, sign out,
+  privacy policy, typed-delete gate, confirmed deletion, server failure) and the
+  router's signed-in allow-list. 179 tests passing. The workplace editor
   and camera scanner are not widget-tested: they need a network map / real
   camera plugin, so those paths are verified manually on device
   (validators/parser cover the pure logic).

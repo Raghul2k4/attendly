@@ -27,6 +27,7 @@ abstract class AuthRepository {
     required String password,
   });
   Future<void> signOut();
+  Future<void> deleteAccount();
   Future<User?> currentUser();
   Stream<AuthChange> get authChanges;
 }
@@ -82,9 +83,30 @@ class SupabaseAuthRepository implements AuthRepository {
     }
   }
 
+  /// Permanently deletes the signed-in account on the server, then clears the
+  /// local session. The confirmation string is re-checked server-side: the
+  /// dialog alone is not trusted.
+  ///
+  /// The auth user no longer exists after the RPC, so the local sign-out must
+  /// not depend on a network round-trip (the default local scope just clears
+  /// storage). Any RPC failure leaves the account and session untouched.
+  @override
+  Future<void> deleteAccount() async {
+    try {
+      await _client.rpc('delete_my_account', params: {'p_confirm': 'DELETE'});
+    } catch (error, st) {
+      Error.throwWithStackTrace(mapBackendError(error), st);
+    }
+    try {
+      await _client.auth.signOut();
+    } catch (_) {
+      // The identity is already gone; a failed local clear must not turn a
+      // completed deletion into an error. The next launch has no valid user.
+    }
+  }
+
   @override
   Future<User?> currentUser() async => _client.auth.currentUser;
-
   @override
   Stream<AuthChange> get authChanges => _client.auth.onAuthStateChange
       .map((event) => event.session?.user)

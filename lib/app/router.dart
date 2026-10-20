@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/auth/presentation/auth_controller.dart';
+import '../features/auth/presentation/account_screen.dart';
 import '../features/auth/presentation/sign_in_screen.dart';
 import '../features/auth/presentation/sign_up_screen.dart';
 import '../features/attendance/presentation/attendance_corrections_screen.dart';
@@ -73,6 +74,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const AccountGateScreen(),
       ),
       GoRoute(
+        path: '/account',
+        name: 'account',
+        builder: (_, _) => const AccountScreen(),
+      ),
+      GoRoute(
         path: '/workplaces',
         name: 'workplaces',
         builder: (_, _) => const WorkplacesScreen(),
@@ -139,6 +145,7 @@ String? _redirect(GoRouterState state, AuthState auth) {
     case AuthStatus.signedIn:
       final isInsideApp =
           location == '/home' ||
+          location.startsWith('/account') ||
           location.startsWith('/setup/') ||
           location.startsWith('/attendance-settings') ||
           location.startsWith('/attendance-history') ||
