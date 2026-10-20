@@ -16,7 +16,9 @@ import '../../organisation/domain/organisation_models.dart';
 import '../../organisation/presentation/organisation_providers.dart';
 import '../domain/attendance_format.dart';
 import '../domain/attendance_models.dart';
+import '../domain/attendance_qr.dart';
 import 'attendance_providers.dart';
+import 'qr_scan_launcher.dart';
 import 'widgets/attendance_notice.dart';
 import 'widgets/attendance_status_card.dart';
 import 'widgets/attendance_summary_card.dart';
@@ -66,8 +68,10 @@ class _EmployeeHomeViewState extends ConsumerState<EmployeeHomeView> {
   Future<void> _punch(
     String organisationId,
     AttendanceToday today,
-    PunchAction action,
-  ) async {
+    PunchAction action, {
+    PunchMethod method = PunchMethod.app,
+    String? qrPayload,
+  }) async {
     if (_punching) return;
     setState(() {
       _punching = true;
@@ -81,12 +85,13 @@ class _EmployeeHomeViewState extends ConsumerState<EmployeeHomeView> {
           .punch(
             organisationId: organisationId,
             action: action,
-            method: PunchMethod.app,
+            method: method,
             latitude: reading.latitude,
             longitude: reading.longitude,
             accuracyMeters: reading.accuracyMeters,
             idempotencyKey: _uuid.v4(),
-            workplaceId: today.workplace?.id,
+            workplaceId: method == PunchMethod.app ? today.workplace?.id : null,
+            qrPayload: qrPayload,
           );
 
       if (!mounted) return;
@@ -139,6 +144,70 @@ class _EmployeeHomeViewState extends ConsumerState<EmployeeHomeView> {
         setState(() => _punching = false);
       }
     }
+  }
+
+  Future<void> _scanAndPunch(
+    String organisationId,
+    AttendanceToday today,
+  ) async {
+    if (_punching) return;
+
+    String? payload;
+    try {
+      payload = await ref.read(qrScanLauncherProvider).scan(context);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _notice = const AttendanceNoticeData(
+          kind: AttendanceNoticeKind.error,
+          title: 'Scanner unavailable',
+          message:
+              'We couldn’t open the camera. Try again, or use the app punch if '
+              'your owner has enabled it.',
+        );
+      });
+      return;
+    }
+
+    if (!mounted || payload == null) return;
+
+    final token = attendanceQrToken(payload);
+    if (token == null) {
+      setState(() {
+        _notice = const AttendanceNoticeData(
+          kind: AttendanceNoticeKind.warning,
+          title: 'Not a workplace QR code',
+          message:
+              'Point the camera at the printed Attendance code from your '
+              'owner. Nothing was recorded.',
+        );
+      });
+      return;
+    }
+    final canonicalPayload = '$attendanceQrPrefix$token';
+
+    final action = today.nextAction;
+    if (action == null) {
+      setState(() {
+        _notice = const AttendanceNoticeData(
+          kind: AttendanceNoticeKind.warning,
+          title: 'Attendance changed',
+          message:
+              'Your attendance state changed while scanning. Refresh and check '
+              'your status before trying again. Nothing was recorded.',
+        );
+      });
+      await _refresh(organisationId);
+      return;
+    }
+
+    await _punch(
+      organisationId,
+      today,
+      action,
+      method: PunchMethod.qr,
+      qrPayload: canonicalPayload,
+    );
   }
 
   @override
@@ -258,6 +327,7 @@ class _EmployeeHomeViewState extends ConsumerState<EmployeeHomeView> {
               final action = today.nextAction;
               if (action != null) _punch(organisation.id, today, action);
             },
+            onScanQr: () => _scanAndPunch(organisation.id, today),
           ),
           if (_notice != null) ...[
             const SizedBox(height: AppSpacing.lg),

@@ -5,6 +5,10 @@
          validating attendance punches. No background location is requested. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <!-- QR attendance is an optional method: the camera permission is requested
+         only when the employee opens the scanner. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <application
         android:label="Attendance"
         android:name="${applicationName}"

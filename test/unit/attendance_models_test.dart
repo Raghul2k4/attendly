@@ -14,6 +14,7 @@ void main() {
           'work_date': '2026-10-20',
           'check_in_at': '2026-10-20T03:32:03.125233+00:00',
           'check_out_at': null,
+          'is_late': true,
           'check_in_time': '09:02',
           'check_out_time': null,
         },
@@ -33,6 +34,7 @@ void main() {
       expect(today.session?.checkInTime, '09:02');
       expect(today.session?.checkInAt.isUtc, isTrue);
       expect(today.session?.isOpen, isTrue);
+      expect(today.session?.isLate, isTrue);
       expect(today.workplace?.name, 'Main Shop');
       expect(today.workplace?.radiusMeters, 100);
       expect(today.settings.appPunchEnabled, isTrue);
@@ -70,6 +72,22 @@ void main() {
       expect(today.nextAction, isNull);
       expect(today.session?.worked, const Duration(hours: 8, minutes: 30));
       expect(today.workplace, isNull);
+    });
+
+    test('owner settings row normalises a time with seconds', () {
+      final settings = AttendanceSettings.fromRow({
+        'app_punch_enabled': true,
+        'qr_punch_enabled': true,
+        'max_accuracy_meters': 75,
+        'start_time': '08:30:00',
+        'grace_minutes': 15,
+        'working_days': [2, 3, 4],
+      });
+
+      expect(settings.startTime, '08:30');
+      expect(settings.maxAccuracyMeters, 75);
+      expect(settings.workingDays, {2, 3, 4});
+      expect(settings.anyPunchEnabled, isTrue);
     });
 
     test('no enabled method means no next action', () {

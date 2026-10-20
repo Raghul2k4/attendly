@@ -15,12 +15,18 @@ class AttendanceStatusCard extends StatelessWidget {
     required this.now,
     required this.punching,
     required this.onPunch,
+    required this.onScanQr,
   });
 
   final AttendanceToday today;
   final DateTime now;
   final bool punching;
   final VoidCallback onPunch;
+
+  /// Opens the workplace scanner. Null only when the caller cannot provide a
+  /// functioning scanner; a QR-only policy then renders an honest explanation
+  /// rather than a dead button.
+  final VoidCallback? onScanQr;
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +49,14 @@ class AttendanceStatusCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _StatusPill(state: today.state),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            children: [
+              _StatusPill(state: today.state),
+              if (session?.isLate ?? false) const _LatePill(),
+            ],
+          ),
           const SizedBox(height: AppSpacing.lg),
           if (today.isComplete) ...[
             Text(
@@ -146,16 +159,6 @@ class AttendanceStatusCard extends StatelessWidget {
       ];
     }
 
-    if (!today.settings.appPunchEnabled && today.settings.qrPunchEnabled) {
-      return [
-        _InlineWarning(
-          message:
-              'QR-only attendance is enabled. Ask your owner to enable app '
-              'punching until the QR scanner is available.',
-        ),
-      ];
-    }
-
     if (today.workplace == null) {
       return [
         _InlineWarning(
@@ -166,26 +169,54 @@ class AttendanceStatusCard extends StatelessWidget {
       ];
     }
 
+    final appEnabled = today.settings.appPunchEnabled;
+    final qrEnabled = today.settings.qrPunchEnabled;
+    if (!appEnabled && (onScanQr == null || !qrEnabled)) {
+      return [
+        _InlineWarning(
+          message:
+              'Your owner has turned off app punching, but QR scanning isn’t '
+              'available here. Ask them to enable app punching or update the '
+              'app.',
+        ),
+      ];
+    }
+
+    final isOut = action == PunchAction.punchOut;
     final label = action?.buttonLabel ?? 'Punch in';
-    final icon = action == PunchAction.punchOut
-        ? Icons.logout_rounded
-        : Icons.login_rounded;
+    final appIcon = isOut ? Icons.logout_rounded : Icons.login_rounded;
+    final spinner = punching
+        ? const SizedBox(
+            width: AppIconSize.sm,
+            height: AppIconSize.sm,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.2,
+              color: AppColors.surface,
+            ),
+          )
+        : null;
 
     return [
-      ElevatedButton.icon(
-        onPressed: punching ? null : onPunch,
-        icon: punching
-            ? const SizedBox(
-                width: AppIconSize.sm,
-                height: AppIconSize.sm,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.2,
-                  color: AppColors.surface,
-                ),
-              )
-            : Icon(icon),
-        label: Text(punching ? 'Recording…' : label),
-      ),
+      if (appEnabled)
+        ElevatedButton.icon(
+          onPressed: punching ? null : onPunch,
+          icon: spinner ?? Icon(appIcon),
+          label: Text(punching ? 'Recording…' : label),
+        )
+      else
+        ElevatedButton.icon(
+          onPressed: punching ? null : onScanQr,
+          icon: const Icon(Icons.qr_code_scanner_rounded),
+          label: Text(punching ? 'Recording…' : 'Scan QR code'),
+        ),
+      if (appEnabled && qrEnabled && onScanQr != null) ...[
+        const SizedBox(height: AppSpacing.sm),
+        OutlinedButton.icon(
+          onPressed: punching ? null : onScanQr,
+          icon: const Icon(Icons.qr_code_scanner_rounded, size: AppIconSize.sm),
+          label: const Text('Scan QR instead'),
+        ),
+      ],
       const SizedBox(height: AppSpacing.md),
       Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,13 +229,26 @@ class AttendanceStatusCard extends StatelessWidget {
           const SizedBox(width: AppSpacing.xs),
           Expanded(
             child: Text(
-              'Your location is checked securely on the server when you punch.',
+              _methodHelp(action, appEnabled, qrEnabled),
               style: textTheme.bodySmall?.copyWith(color: AppColors.slate500),
             ),
           ),
         ],
       ),
     ];
+  }
+
+  String _methodHelp(PunchAction? action, bool appEnabled, bool qrEnabled) {
+    if (appEnabled && qrEnabled) {
+      return 'Your location is checked securely on the server after a punch or '
+          'QR scan.';
+    }
+    if (appEnabled) {
+      return 'Your location is checked securely on the server when you punch.';
+    }
+    final verb = action == PunchAction.punchOut ? 'punch out' : 'punch in';
+    return 'Scan the printed workplace code to $verb. Your location is checked '
+        'after the scan.';
   }
 }
 
@@ -246,6 +290,32 @@ class _StatusPill extends StatelessWidget {
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
           color: foreground,
+          fontWeight: FontWeight.w600,
+          letterSpacing: .8,
+        ),
+      ),
+    );
+  }
+}
+
+class _LatePill extends StatelessWidget {
+  const _LatePill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.amber50,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Text(
+        'LATE ARRIVAL',
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: AppColors.amber600,
           fontWeight: FontWeight.w600,
           letterSpacing: .8,
         ),

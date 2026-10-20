@@ -1,5 +1,7 @@
 import 'package:attendance/features/attendance/domain/attendance_models.dart';
 
+const testQrPayload = 'attendance:workplace:v1:ABCD2-EFGH3-JKMN4-PQRST';
+
 AttendanceSettings testAttendanceSettings({
   bool appPunchEnabled = true,
   bool qrPunchEnabled = false,
@@ -34,6 +36,7 @@ AttendanceSession testAttendanceSession({
   DateTime? checkOutAt,
   String checkInTime = '09:12',
   String? checkOutTime,
+  bool isLate = false,
 }) {
   final today = testWorkDate();
   final start = checkInAt ?? today.add(const Duration(hours: 9, minutes: 12));
@@ -44,6 +47,7 @@ AttendanceSession testAttendanceSession({
     checkOutAt: checkOutAt?.toUtc(),
     checkInTime: checkInTime,
     checkOutTime: checkOutTime,
+    isLate: isLate,
   );
 }
 

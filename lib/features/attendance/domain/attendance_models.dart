@@ -39,6 +39,7 @@ class AttendanceSession {
     required this.checkOutAt,
     required this.checkInTime,
     required this.checkOutTime,
+    required this.isLate,
   });
 
   factory AttendanceSession.fromJson(Map<String, dynamic> json) {
@@ -54,6 +55,7 @@ class AttendanceSession {
       checkOutAt: _dateTime(json['check_out_at'])?.toUtc(),
       checkInTime: json['check_in_time'] as String? ?? '—',
       checkOutTime: json['check_out_time'] as String?,
+      isLate: json['is_late'] as bool? ?? false,
     );
   }
 
@@ -65,6 +67,10 @@ class AttendanceSession {
   /// Local time strings formatted server-side in the organisation timezone.
   final String checkInTime;
   final String? checkOutTime;
+
+  /// Classified by the server when the session was opened. It is stored, so
+  /// changing the owner's schedule later cannot rewrite this history.
+  final bool isLate;
 
   bool get isOpen => checkOutAt == null;
   bool get isCompleted => checkOutAt != null;
@@ -116,7 +122,7 @@ class AttendanceSettings {
         appPunchEnabled: json['app_punch_enabled'] as bool? ?? true,
         qrPunchEnabled: json['qr_punch_enabled'] as bool? ?? false,
         maxAccuracyMeters: (json['max_accuracy_meters'] as num?)?.toInt() ?? 50,
-        startTime: json['start_time'] as String? ?? '09:00',
+        startTime: _timeHHmm(json['start_time']),
         graceMinutes: (json['grace_minutes'] as num?)?.toInt() ?? 10,
         workingDays:
             (json['working_days'] as List?)
@@ -124,6 +130,10 @@ class AttendanceSettings {
                 .toSet() ??
             const {1, 2, 3, 4, 5},
       );
+
+  /// Direct owner settings row (PostgREST returns `time` as `HH:mm:ss`).
+  factory AttendanceSettings.fromRow(Map<String, dynamic> row) =>
+      AttendanceSettings.fromJson(row);
 
   final bool appPunchEnabled;
   final bool qrPunchEnabled;
@@ -133,6 +143,27 @@ class AttendanceSettings {
   final Set<int> workingDays;
 
   bool get anyPunchEnabled => appPunchEnabled || qrPunchEnabled;
+
+  AttendanceSettings copyWith({
+    bool? appPunchEnabled,
+    bool? qrPunchEnabled,
+    int? maxAccuracyMeters,
+    String? startTime,
+    int? graceMinutes,
+    Set<int>? workingDays,
+  }) => AttendanceSettings(
+    appPunchEnabled: appPunchEnabled ?? this.appPunchEnabled,
+    qrPunchEnabled: qrPunchEnabled ?? this.qrPunchEnabled,
+    maxAccuracyMeters: maxAccuracyMeters ?? this.maxAccuracyMeters,
+    startTime: startTime ?? this.startTime,
+    graceMinutes: graceMinutes ?? this.graceMinutes,
+    workingDays: workingDays ?? this.workingDays,
+  );
+}
+
+String _timeHHmm(Object? value) {
+  final raw = value is String ? value : '';
+  return raw.length >= 5 ? raw.substring(0, 5) : '09:00';
 }
 
 class AttendanceToday {
