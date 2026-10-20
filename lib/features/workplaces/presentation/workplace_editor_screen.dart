@@ -17,6 +17,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../organisation/domain/organisation_models.dart';
 import '../../organisation/presentation/organisation_providers.dart';
 import '../../../core/widgets/surface_card.dart';
+import '../domain/workplace_location_issue.dart';
 import '../domain/workplace_models.dart';
 import 'widgets/workplace_map.dart';
 import 'widgets/workplace_qr_card.dart';
@@ -168,6 +169,7 @@ class _EditorBodyState extends ConsumerState<_EditorBody> {
   AppException? _saveError;
   bool _locating = false;
   String? _locationMessage;
+  WorkplaceLocationIssue? _locationIssue;
 
   @override
   void initState() {
@@ -195,42 +197,28 @@ class _EditorBodyState extends ConsumerState<_EditorBody> {
     setState(() {
       _locating = true;
       _locationMessage = null;
+      _locationIssue = null;
     });
     try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        if (mounted) {
-          setState(() {
-            _locationMessage =
-                'Turn on location services to use your current position. You '
-                'can also tap the map.';
-          });
-        }
-        return;
-      }
-
+      // Ask for permission first. Asking only after checking location services
+      // meant a first-time owner with location switched off never saw the
+      // Android permission dialog and had no route to the relevant settings.
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
-      if (permission == LocationPermission.denied) {
-        if (mounted) {
-          setState(() {
-            _locationMessage =
-                'Location permission was denied. You can still place the '
-                'marker by tapping the map.';
-          });
-        }
+      if (permission == LocationPermission.deniedForever) {
+        _showLocationIssue(WorkplaceLocationIssue.permissionBlocked);
         return;
       }
-      if (permission == LocationPermission.deniedForever) {
-        if (mounted) {
-          setState(() {
-            _locationMessage =
-                'Location permission is blocked. Enable it in Android settings, '
-                'or tap the map to place the marker.';
-          });
-        }
+      if (permission == LocationPermission.denied) {
+        _showLocationIssue(WorkplaceLocationIssue.permissionDenied);
+        return;
+      }
+
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _showLocationIssue(WorkplaceLocationIssue.servicesDisabled);
         return;
       }
 
@@ -245,32 +233,64 @@ class _EditorBodyState extends ConsumerState<_EditorBody> {
       setState(() => _point = point);
       _mapController.move(point, 17);
     } on TimeoutException {
-      if (mounted) {
-        setState(() {
-          _locationMessage =
-              'We couldn’t get a location fix. Move outdoors and try again, or '
-              'tap the map.';
-        });
-      }
+      _showLocationIssue(WorkplaceLocationIssue.timeout);
     } on LocationServiceDisabledException {
-      if (mounted) {
-        setState(() {
-          _locationMessage =
-              'Location services are turned off. Turn them on, or tap the '
-              'map.';
-        });
-      }
+      _showLocationIssue(WorkplaceLocationIssue.servicesDisabled);
+    } on PermissionDeniedException {
+      _showLocationIssue(WorkplaceLocationIssue.permissionDenied);
     } catch (_) {
-      if (mounted) {
-        setState(() {
-          _locationMessage =
-              'We couldn’t read your position. Tap the map to place the marker '
-              'instead.';
-        });
-      }
+      _showLocationIssue(WorkplaceLocationIssue.unknown);
     } finally {
       if (mounted) setState(() => _locating = false);
     }
+  }
+
+  void _showLocationIssue(WorkplaceLocationIssue issue) {
+    if (!mounted) return;
+    setState(() {
+      _locationMessage = null;
+      _locationIssue = issue;
+    });
+  }
+
+  Future<void> _handleLocationAction() async {
+    final issue = _locationIssue;
+    if (issue == null || _locating || _saving) return;
+
+    if (!issue.opensLocationSettings && !issue.opensAppSettings) {
+      await _useCurrentLocation();
+      return;
+    }
+
+    var opened = false;
+    try {
+      opened = issue.opensLocationSettings
+          ? await Geolocator.openLocationSettings()
+          : await Geolocator.openAppSettings();
+    } catch (_) {
+      opened = false;
+    }
+    if (!mounted) return;
+
+    final String message;
+    if (opened) {
+      message = issue.opensLocationSettings
+          ? 'Location settings opened. Turn location on, then tap Use my '
+                'location again.'
+          : 'App settings opened. Allow Location for Attendance, then tap '
+                'Use my location again.';
+    } else {
+      message = issue.opensLocationSettings
+          ? 'Open Android Settings > Location and turn it on, then tap Use my '
+                'location again.'
+          : 'Open Android Settings > Apps > Attendance > Permissions and allow '
+                'location, then tap Use my location again.';
+    }
+
+    setState(() {
+      _locationIssue = null;
+      _locationMessage = message;
+    });
   }
 
   Future<void> _save() async {
@@ -279,6 +299,7 @@ class _EditorBodyState extends ConsumerState<_EditorBody> {
     final point = _point;
     if (point == null) {
       setState(() {
+        _locationIssue = null;
         _locationMessage =
             'Choose the location by tapping the map or using your current '
             'position.';
@@ -402,6 +423,7 @@ class _EditorBodyState extends ConsumerState<_EditorBody> {
                       onPointSelected: (selected) {
                         setState(() {
                           _point = selected;
+                          _locationIssue = null;
                           _locationMessage = null;
                         });
                       },
@@ -436,7 +458,7 @@ class _EditorBodyState extends ConsumerState<_EditorBody> {
                             : AppColors.ink600,
                       ),
                     ),
-                    if (_locationMessage != null) ...[
+                    if (_locationIssue != null || _locationMessage != null) ...[
                       const SizedBox(height: AppSpacing.sm),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -449,7 +471,7 @@ class _EditorBodyState extends ConsumerState<_EditorBody> {
                           const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: Text(
-                              _locationMessage!,
+                              _locationIssue?.message ?? _locationMessage!,
                               style: textTheme.bodySmall?.copyWith(
                                 color: AppColors.amber600,
                               ),
@@ -457,6 +479,35 @@ class _EditorBodyState extends ConsumerState<_EditorBody> {
                           ),
                         ],
                       ),
+                      if (_locationIssue?.actionLabel != null) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            onPressed: _locating || _saving
+                                ? null
+                                : _handleLocationAction,
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.amber600,
+                              padding: EdgeInsets.zero,
+                              minimumSize: const Size(
+                                64,
+                                TouchTarget.minInteractive,
+                              ),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            icon: Icon(
+                              _locationIssue!.opensLocationSettings
+                                  ? Icons.location_on_outlined
+                                  : _locationIssue!.opensAppSettings
+                                  ? Icons.settings_outlined
+                                  : Icons.refresh_rounded,
+                              size: AppIconSize.sm,
+                            ),
+                            label: Text(_locationIssue!.actionLabel!),
+                          ),
+                        ),
+                      ],
                     ],
                     const SizedBox(height: AppSpacing.sm),
                     Text(
