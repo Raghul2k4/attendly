@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_dimensions.dart';
 import '../../../core/errors/app_exception.dart';
+import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_error_panel.dart';
+import '../../attendance/domain/attendance_format.dart';
+import '../../attendance/domain/attendance_history_models.dart';
 import '../../attendance/presentation/attendance_providers.dart';
 import '../../workplaces/presentation/workplace_providers.dart';
 import '../domain/organisation_models.dart';
@@ -43,7 +47,15 @@ class OwnerHomeView extends ConsumerWidget {
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(staffProvider(organisation.id));
-        await ref.read(staffProvider(organisation.id).future);
+        ref.invalidate(ownerAttendanceOverviewProvider(organisation.id));
+        try {
+          await Future.wait([
+            ref.read(staffProvider(organisation.id).future),
+            ref.read(ownerAttendanceOverviewProvider(organisation.id).future),
+          ]);
+        } catch (_) {
+          // Both providers render their own recoverable error states.
+        }
       },
       child: staff.when(
         loading: () => ListView(
@@ -130,6 +142,9 @@ class _OwnerDashboard extends ConsumerWidget {
       error: (error, stackTrace) =>
           'Review methods, workdays and lateness rules',
     );
+    final overview = ref.watch(
+      ownerAttendanceOverviewProvider(organisation.id),
+    );
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -162,6 +177,13 @@ class _OwnerDashboard extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.xl),
+        _TodayOverviewCard(
+          overview: overview,
+          onRetry: () =>
+              ref.invalidate(ownerAttendanceOverviewProvider(organisation.id)),
+          onOpenReport: () => context.push('/attendance-report'),
+        ),
+        const SizedBox(height: AppSpacing.lg),
         SurfaceCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -224,6 +246,13 @@ class _OwnerDashboard extends ConsumerWidget {
           subtitle: attendanceSummary,
           onTap: () => context.push('/attendance-settings'),
         ),
+        const SizedBox(height: AppSpacing.md),
+        _DashboardEntry(
+          icon: Icons.insights_outlined,
+          title: 'Attendance report',
+          subtitle: 'Daily records, late arrivals, open sessions and CSV',
+          onTap: () => context.push('/attendance-report'),
+        ),
         const SizedBox(height: AppSpacing.xl),
         Row(
           children: [
@@ -266,6 +295,379 @@ class _OwnerDashboard extends ConsumerWidget {
               ),
             ),
       ],
+    );
+  }
+}
+
+class _TodayOverviewCard extends StatelessWidget {
+  const _TodayOverviewCard({
+    required this.overview,
+    required this.onRetry,
+    required this.onOpenReport,
+  });
+
+  final AsyncValue<OwnerAttendanceOverview> overview;
+  final VoidCallback onRetry;
+  final VoidCallback onOpenReport;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return SurfaceCard(
+      child: overview.when(
+        loading: () => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(child: Text('Today', style: textTheme.titleMedium)),
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'Loading recorded attendance...',
+              style: textTheme.bodySmall?.copyWith(color: AppColors.slate500),
+            ),
+          ],
+        ),
+        error: (error, _) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Today', style: textTheme.titleMedium),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              error is AppException
+                  ? error.message
+                  : 'Today\'s attendance couldn\'t be loaded.',
+              style: textTheme.bodySmall?.copyWith(color: AppColors.rose600),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            TextButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded, size: AppIconSize.sm),
+              label: const Text('Try again'),
+            ),
+          ],
+        ),
+        data: (data) =>
+            _OverviewData(overview: data, onOpenReport: onOpenReport),
+      ),
+    );
+  }
+}
+
+class _OverviewData extends StatelessWidget {
+  const _OverviewData({required this.overview, required this.onOpenReport});
+
+  final OwnerAttendanceOverview overview;
+  final VoidCallback onOpenReport;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final openSessions = overview.openSessions;
+    final recent = overview.recentSessions.take(5).toList(growable: false);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Today', style: textTheme.titleMedium),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    DateFormat('EEEE, d MMMM').format(overview.today),
+                    style: textTheme.bodySmall?.copyWith(
+                      color: AppColors.slate500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            TextButton(onPressed: onOpenReport, child: const Text('Report')),
+          ],
+        ),
+        if (!overview.isWorkingDay) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Today isn\'t a configured working day. Recorded attendance is '
+            'still shown.',
+            style: textTheme.bodySmall?.copyWith(color: AppColors.amber600),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.lg),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _OverviewMetric(
+                label: 'Present',
+                value: '${overview.presentTodayCount}',
+                valueColor: AppColors.emerald700,
+              ),
+            ),
+            Expanded(
+              child: _OverviewMetric(
+                label: 'Checked in',
+                value: '${overview.checkedInNowCount}',
+              ),
+            ),
+            Expanded(
+              child: _OverviewMetric(
+                label: 'Late',
+                value: '${overview.lateTodayCount}',
+                valueColor: overview.lateTodayCount > 0
+                    ? AppColors.amber600
+                    : null,
+              ),
+            ),
+            Expanded(
+              child: _OverviewMetric(
+                label: 'No record yet',
+                value: '${overview.noRecordTodayCount}',
+                valueColor: AppColors.slate500,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          '${overview.activeEmployeeCount} active '
+          '${overview.activeEmployeeCount == 1 ? 'employee' : 'employees'}. '
+          'No record is not counted as an absence.',
+          style: textTheme.bodySmall?.copyWith(color: AppColors.slate500),
+        ),
+        if (overview.unresolvedPriorCount > 0) ...[
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.amber50,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.warning_amber_rounded,
+                  size: AppIconSize.sm,
+                  color: AppColors.amber600,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    overview.unresolvedPriorCount == 1
+                        ? 'One session is still open from a previous day. It '
+                              'needs review.'
+                        : '${overview.unresolvedPriorCount} sessions are still '
+                              'open from previous days. They need review.',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: AppColors.amber600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        const Divider(height: AppSpacing.xxl),
+        Text('Checked in now', style: textTheme.titleSmall),
+        const SizedBox(height: AppSpacing.sm),
+        if (openSessions.isEmpty)
+          Text(
+            'No one is checked in right now.',
+            style: textTheme.bodySmall?.copyWith(color: AppColors.slate500),
+          )
+        else
+          for (final session in openSessions) ...[
+            _OpenSessionRow(session: session),
+            if (session != openSessions.last)
+              const SizedBox(height: AppSpacing.sm),
+          ],
+        if (recent.isNotEmpty) ...[
+          const Divider(height: AppSpacing.xxl),
+          Text('Recent activity', style: textTheme.titleSmall),
+          const SizedBox(height: AppSpacing.sm),
+          for (final entry in recent) ...[
+            _RecentActivityRow(entry: entry, today: overview.today),
+            if (entry != recent.last) const SizedBox(height: AppSpacing.sm),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _OverviewMetric extends StatelessWidget {
+  const _OverviewMetric({
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
+
+  final String label;
+  final String value;
+  final Color? valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: textTheme.titleLarge?.copyWith(
+            color: valueColor ?? AppColors.ink900,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          label,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: textTheme.labelSmall?.copyWith(color: AppColors.slate500),
+        ),
+      ],
+    );
+  }
+}
+
+class _OpenSessionRow extends StatelessWidget {
+  const _OpenSessionRow({required this.session});
+
+  final AttendanceOpenSession session;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final sinceLabel = session.isStaleOpen
+        ? 'Since ${DateFormat('d MMM').format(session.workDate)}, '
+              '${session.checkInTime}'
+        : 'Since ${session.checkInTime}';
+    return Row(
+      children: [
+        _SmallInitials(name: session.memberName),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(session.memberName, style: textTheme.bodyMedium),
+              Text(
+                sinceLabel,
+                style: textTheme.bodySmall?.copyWith(
+                  color: session.isLate || session.isStaleOpen
+                      ? AppColors.amber600
+                      : AppColors.slate500,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (session.isLate)
+          const AppBadge(
+            label: 'Late',
+            background: AppColors.amber50,
+            foreground: AppColors.amber600,
+          ),
+      ],
+    );
+  }
+}
+
+class _RecentActivityRow extends StatelessWidget {
+  const _RecentActivityRow({required this.entry, required this.today});
+
+  final AttendanceHistoryEntry entry;
+  final DateTime today;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final datePrefix = isSameCalendarDay(entry.workDate, today)
+        ? ''
+        : '${DateFormat('d MMM').format(entry.workDate)} - ';
+    final activity = entry.isOpen
+        ? '${datePrefix}In ${entry.checkInTime}, still checked in'
+        : '${datePrefix}In ${entry.checkInTime}, out '
+              '${entry.checkOutTime ?? '--:--'}'
+              '${entry.crossesMidnight ? ' next day' : ''}';
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SmallInitials(name: entry.memberName),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(entry.memberName, style: textTheme.bodyMedium),
+              Text(
+                activity,
+                style: textTheme.bodySmall?.copyWith(
+                  color: entry.isLate || entry.isOpen
+                      ? AppColors.amber600
+                      : AppColors.slate500,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (entry.displayDuration != null)
+          Text(
+            formatWorked(entry.displayDuration!),
+            style: textTheme.labelSmall?.copyWith(
+              color: AppColors.slate500,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _SmallInitials extends StatelessWidget {
+  const _SmallInitials({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    final initials = parts.isEmpty || parts.first.isEmpty
+        ? '?'
+        : parts.length == 1
+        ? parts.first[0].toUpperCase()
+        : (parts.first[0] + parts.last[0]).toUpperCase();
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: const BoxDecoration(
+        color: AppColors.emerald50,
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initials,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: AppColors.emerald700,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }

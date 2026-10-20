@@ -100,6 +100,18 @@ void main() {
       expect(mapped.message, contains('active employee'));
     });
 
+    test('invalid report ranges explain the required order', () {
+      final mapped = mapBackendError(att('invalid_date_range'));
+      expect(mapped.kind, AppErrorKind.invalidInput);
+      expect(mapped.message, contains('start date'));
+    });
+
+    test('oversized report ranges explain the one-year limit', () {
+      final mapped = mapBackendError(att('date_range_too_large'));
+      expect(mapped.kind, AppErrorKind.invalidInput);
+      expect(mapped.message, contains('one year'));
+    });
+
     test('unknown ATT codes stay honest about saving failing', () {
       final mapped = mapBackendError(att('some_future_code'));
       expect(mapped.kind, AppErrorKind.server);

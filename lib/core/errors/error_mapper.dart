@@ -175,6 +175,15 @@ AppException mapBackendError(Object error, {StackTrace? stackTrace}) {
         'This punch was already recorded. Refresh to see your current status.',
         AppErrorKind.conflict,
       ),
+      'invalid_date_range' => (
+        'Choose a valid date range: the start date must be on or before the '
+            'end date.',
+        AppErrorKind.invalidInput,
+      ),
+      'date_range_too_large' => (
+        'Reports can cover up to one year at a time.',
+        AppErrorKind.invalidInput,
+      ),
       'invalid_event_type' || 'invalid_method' || 'invalid_idempotency_key' => (
         'We couldn’t record this punch. Update the app and try again.',
         AppErrorKind.server,

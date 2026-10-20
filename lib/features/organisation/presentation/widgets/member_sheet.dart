@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_dimensions.dart';
@@ -178,6 +179,22 @@ class _MemberSheetState extends ConsumerState<MemberSheet> {
             ],
             if (!member.isOwner && member.status != MemberStatus.invited) ...[
               const SizedBox(height: AppSpacing.xl),
+              OutlinedButton.icon(
+                onPressed: () {
+                  final router = GoRouter.of(context);
+                  Navigator.of(context).pop();
+                  final query = Uri(
+                    queryParameters: {
+                      'member': member.id,
+                      'name': member.fullName,
+                    },
+                  ).query;
+                  router.push('/attendance-report?$query');
+                },
+                icon: const Icon(Icons.insights_outlined),
+                label: const Text('View attendance'),
+              ),
+              const SizedBox(height: AppSpacing.sm),
               if (member.isActive)
                 OutlinedButton.icon(
                   onPressed: _busy ? null : _deactivate,

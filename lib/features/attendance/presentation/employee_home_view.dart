@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
@@ -335,6 +336,12 @@ class _EmployeeHomeViewState extends ConsumerState<EmployeeHomeView> {
           ],
           const SizedBox(height: AppSpacing.lg),
           AttendanceSummaryCard(today: today),
+          const SizedBox(height: AppSpacing.md),
+          OutlinedButton.icon(
+            onPressed: () => context.push('/attendance-history'),
+            icon: const Icon(Icons.history_rounded, size: AppIconSize.sm),
+            label: const Text('View attendance history'),
+          ),
           const SizedBox(height: AppSpacing.lg),
           SurfaceCard(
             child: Column(

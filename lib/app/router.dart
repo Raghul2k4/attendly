@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/auth_controller.dart';
 import '../features/auth/presentation/sign_in_screen.dart';
 import '../features/auth/presentation/sign_up_screen.dart';
+import '../features/attendance/presentation/attendance_history_screen.dart';
+import '../features/attendance/presentation/attendance_report_screen.dart';
 import '../features/attendance/presentation/attendance_settings_screen.dart';
 import '../features/onboarding/domain/user_role.dart';
 import '../features/onboarding/welcome_screen.dart';
@@ -93,6 +95,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const AttendanceSettingsScreen(),
       ),
       GoRoute(
+        path: '/attendance-history',
+        name: 'attendance-history',
+        builder: (_, _) => const AttendanceHistoryScreen(),
+      ),
+      GoRoute(
+        path: '/attendance-report',
+        name: 'attendance-report',
+        builder: (_, state) => AttendanceReportScreen(
+          initialMemberId: state.uri.queryParameters['member'],
+          initialMemberName: state.uri.queryParameters['name'],
+        ),
+      ),
+      GoRoute(
         path: '/setup/create-organisation',
         name: 'create-organisation',
         builder: (_, _) => const CreateOrganisationScreen(),
@@ -120,6 +135,8 @@ String? _redirect(GoRouterState state, AuthState auth) {
           location == '/home' ||
           location.startsWith('/setup/') ||
           location.startsWith('/attendance-settings') ||
+          location.startsWith('/attendance-history') ||
+          location.startsWith('/attendance-report') ||
           location.startsWith('/workplaces');
       return isInsideApp ? null : '/home';
     case AuthStatus.signedOut:

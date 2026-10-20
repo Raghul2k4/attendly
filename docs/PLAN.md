@@ -30,6 +30,16 @@ Concise Stage 2 plan per AGENTS.md. Living document; update as slices land.
   clean. Live REST verified settings write + audit and insert-time lateness.
   Device walkthrough is pending because the Android phone was disconnected
   during the final build.
+- **Reports/history slice shipped**: employee attendance history and the owner
+  attendance report are served by server RPCs that bucket dates in the
+  organisation timezone, so the phone never reinterprets a stored time. Owner
+  dashboard gained a real "today" overview (present, checked in, late, no record
+  yet, unresolved prior sessions, recent activity) and a report entry point.
+  Date presets, an employee filter and a quoted, formula-injection-safe CSV
+  copy are backed by the same server data. 149 unit/widget tests pass; analyzer
+  clean. Migration applied to the hosted project and the RPCs were verified
+  against real Techloft records (see the reports suite below), then confirmed
+  on the CPH2325 with the existing owner session.
 
 ## Architecture decisions
 
@@ -129,6 +139,22 @@ Migrations (`supabase/migrations/`):
 - `20261020000800_settings_method_required.sql` — table check constraint
   requiring at least one enabled punch method, so a direct API write cannot
   disable both app and QR attendance.
+- `20261020000900_attendance_reports.sql` — server-authoritative reporting:
+  - `private.attendance_history_payload(org, from, to, member, include_members)`
+    is the single builder for both shapes; it is revoked from every client role
+    and only callable after a public RPC has validated the caller.
+  - `get_my_attendance_history(org, from, to)` — employee scope: the member is
+    resolved from the caller's active employee membership, the roster is never
+    returned, and only that member's sessions are included.
+  - `get_attendance_report(org, from, to, member?)` — owner scope: `member` must
+    be an employee of the same organisation, otherwise `ATT:member_not_found`.
+  - `get_owner_attendance_overview(org)` — today counters (present, checked in,
+    completed, late, no record yet), unresolved prior sessions and recent
+    activity, all computed from recorded sessions.
+  - Date bucketing, `HH24:MI` formatting, durations, overnight flags and the
+    366-day range limit all live in PostgreSQL, using the organisation's IANA
+    timezone. Index `attendance_sessions_org_work_date_idx` supports the range
+    scans.
 
 Error contract: functions raise `ATT:<code>` (P0001). Client maps codes to copy.
 Codes: `not_authenticated`, `invalid_org_name`, `unknown_plan`, `unknown_timezone`,
@@ -141,7 +167,7 @@ Codes: `not_authenticated`, `invalid_org_name`, `unknown_plan`, `unknown_timezon
 `org_reassignment_not_allowed`, `workplace_not_found`, `workplace_inactive`,
 `invalid_event_type`, `invalid_method`, `invalid_idempotency_key`,
 `not_active_employee`, `attendance_not_configured`, `method_disabled`,
-`rate_limited`, `punch_conflict`.
+`rate_limited`, `punch_conflict`, `invalid_date_range`, `date_range_too_large`.
 
 Product invariant decided here: **one organisation per owner** (unique index,
 idempotent create returns the existing org) and **one active employee membership
@@ -221,6 +247,32 @@ Advisors remaining (accepted/documented):
 - 4× `authenticated_security_definer_function_executable` — intended RPC surface.
 - `auth_leaked_password_protection` — not managed by CLI 2.121; enable in dashboard.
 
+Reports/history suite (20 Oct, hosted project, real Techloft records):
+
+- `get_owner_attendance_overview` for the Techloft owner returned the real
+  counters (`present_today_count` 1, `checked_in_now_count` 0, `late_today_count`
+  0, `no_record_today_count` 0, `unresolved_prior_count` 0) with
+  `today` = 2026-10-20 in `Asia/Kolkata`, plus Suresh's session
+  (15:37 → 15:40, 129 s) in `recent_sessions`.
+- `get_attendance_report` returned the same session with server-formatted
+  `check_in_time`/`check_out_time` in the organisation timezone, the roster
+  (one employee) and summary counts that match the stored rows.
+- `get_attendance_report` filtered to Suresh's member id returned exactly his
+  record; a member id from another organisation was rejected with
+  `ATT:member_not_found`.
+- `get_my_attendance_history` as the employee returned his own session with an
+  **empty** member roster (no other employee is visible to the employee).
+- Authorization probes: employee → owner report `ATT:not_org_owner`; owner →
+  personal history `ATT:not_active_employee`; foreign owner → Techloft overview
+  and report `ATT:not_org_owner`; employee → foreign organisation history
+  `ATT:not_active_employee`; anonymous call `ATT:not_authenticated`.
+- Range guards: reversed range `ATT:invalid_date_range`; 657-day range
+  `ATT:date_range_too_large`.
+- The migration was re-applied from the file after fixing two SQL issues found
+  live (`extract(epoch from ...)` cannot be schema-qualified, and `greatest` is
+  an expression, not a schema-qualified function). The file in
+  `supabase/migrations/` is the version that was verified.
+
 ## Next slices
 
 3. ~~**Org creation + join UI (Flutter)**~~ — shipped: setup gate, owner create form
@@ -240,8 +292,10 @@ Advisors remaining (accepted/documented):
    rejection evidence/copy, idempotency, overnight close, and the owner rules
    screen. Remaining: device walkthrough for camera/QR permissions and the
    owner settings form (phone disconnected during the final build).
-6. **Reports/History** — employee history, owner staff details, daily reports,
-   CSV export with formula-injection sanitization.
+6. ~~**Reports/History**~~ — shipped: server RPCs for employee history, owner
+   report and owner dashboard overview; date presets, employee filter, period
+   totals, unresolved-session labels and a quoted, formula-injection-safe CSV
+   copy. Verified on the CPH2325 with the live owner session.
 7. **Corrections & audit** — reason-required adjustments preserving originals.
 8. **Release prep** — README/Play checklist, signed bundle config, privacy copy.
 
@@ -250,7 +304,9 @@ Advisors remaining (accepted/documented):
 - Unit: validators, auth + backend error mapping (done, incl. every `ATT:*` code
   used by the UI); attendance JSON parsing (including stored `is_late` and
   `HH:mm:ss` settings rows), state→action, QR payload shape, duration/timer/
-  distance formatting and rejection copy (done). Next: reports/history rules.
+  distance formatting and rejection copy (done); report/history parsing, date
+  presets and calendar arithmetic, CSV quoting and formula-injection
+  neutralisation (done).
 - Widget: forms, loading/empty/error, role choice, a11y semantics, button states
   (auth); org create/join validation + navigation, owner roster/seat usage,
   invite result sheet, workplaces list (empty/list/error), QR card
@@ -258,9 +314,14 @@ Advisors remaining (accepted/documented):
   checked in, complete, accepted refresh, outside rejection, permission denial,
   methods disabled, server error/retry, QR scan submission, late badge); owner
   attendance rules (load, method/day validation, save, save failure, employee
-  denial). 113 tests passing. The workplace editor and camera scanner are not
-  widget-tested: they need a network map / real camera plugin, so those paths
-  are verified manually on device (validators/parser cover the pure logic).
+  denial); employee attendance history (summary, month navigation, open-session
+  labelling, empty, error/retry, owner denial); owner report (summary, preset
+  dates, employee filter, empty, error/retry, employee denial) and the owner
+  dashboard overview (metrics, checked-in list, recent activity, unresolved
+  prior sessions, overview failure). 149 tests passing. The workplace editor and
+  camera scanner are not widget-tested: they need a network map / real camera
+  plugin, so those paths are verified manually on device (validators/parser
+  cover the pure logic).
 - Router: welcome→auth→home gate transitions under fake auth stream (done).
 - Backend: versioned SQL probes in `supabase/tests/`; behavioural suites executed
   via REST against the linked project (suites A/B/C, attendance/QR, and
@@ -297,9 +358,9 @@ Advisors remaining (accepted/documented):
 - A lost workplace QR cannot be re-displayed (hash-only storage); owners replace
   it, which immediately invalidates the old print. No QR print/share sheet yet —
   the payload is copyable and rendered on screen.
-- Attendance screens have no owner reports/history yet; sessions/events are
-  already indexed for those queries. Owner dashboard attendance counts still need
-  to be added from real records.
+- Reports and history are read-only so far: an owner can inspect and export
+  recorded sessions, but cannot yet correct a missed check-out. That is the next
+  slice (reason-required corrections with an audit trail).
 
 ## Major risks / mitigations
 
