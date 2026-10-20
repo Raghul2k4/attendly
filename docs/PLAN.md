@@ -126,6 +126,9 @@ Migrations (`supabase/migrations/`):
   later policy edits cannot rewrite history. The session JSON gains `is_late`.
   An `AFTER UPDATE` trigger audits every owner policy change with the acting
   user, target and timestamp.
+- `20261020000800_settings_method_required.sql` — table check constraint
+  requiring at least one enabled punch method, so a direct API write cannot
+  disable both app and QR attendance.
 
 Error contract: functions raise `ATT:<code>` (P0001). Client maps codes to copy.
 Codes: `not_authenticated`, `invalid_org_name`, `unknown_plan`, `unknown_timezone`,
@@ -206,6 +209,8 @@ Attendance rules suite (live REST + transactional SQL probe, 20 Oct):
 
 - owner settings read/write accepted; the change produced an
   `attendance_settings_updated` audit row naming the acting owner;
+- disabling both app and QR methods returned `23514` (check violation) and left
+  a valid policy in place;
 - an employee settings write changed 0 rows and left the policy intact;
 - original GPS-accuracy value restored after the probe;
 - insert probe: Monday 10:30 check-in → `is_late = true`; Saturday 10:30 →
