@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/attendance_correction_fixtures.dart';
 import '../support/attendance_history_fixtures.dart';
 import '../support/fake_attendance_correction_repository.dart';
 import '../support/fake_attendance_history_repository.dart';
@@ -224,6 +225,31 @@ void main() {
       await pumpScreen(tester, repository);
 
       expect(find.text('Corrected'), findsOneWidget);
+    });
+
+    testWidgets('a saved correction refetches the report from the server', (
+      tester,
+    ) async {
+      final repository = echoingRepository(sessions: [testHistoryEntry()]);
+      final corrections = FakeAttendanceCorrectionRepository(
+        result: testCorrectionResult(correctedCheckOutTime: '18:30'),
+      );
+      await pumpScreen(tester, repository, correctionRepository: corrections);
+      expect(repository.reportCalls, 1);
+
+      await tester.tap(find.text('Correct check-out'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byType(TextFormField),
+        'Owner confirmed the employee left at 18:30',
+      );
+      await tester.tap(find.text('Save correction'));
+      await tester.pumpAndSettle();
+
+      expect(corrections.calls, hasLength(1));
+      // The report must be re-read from the server, not left stale.
+      expect(repository.reportCalls, 2);
+      expect(find.text('Check-out corrected to 18:30.'), findsOneWidget);
     });
   });
 }

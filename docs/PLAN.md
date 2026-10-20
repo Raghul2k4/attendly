@@ -46,8 +46,10 @@ Concise Stage 2 plan per AGENTS.md. Living document; update as slices land.
   value, writes an audit row and only then confirms. A Corrections screen
   lists every manual change with its reason, actor and time; corrected
   records are labelled in both the owner report and the employee history.
-  170 unit/widget tests pass; analyzer clean. Backend behaviour verified
-  against the hosted project with a rolled-back probe.
+  171 unit/widget tests pass; analyzer clean. Backend behaviour verified
+  against the hosted project with a rolled-back probe, and the whole flow
+  was walked through on the CPH2325 (open sheet → save → "Corrected" label →
+  audit entry) against a temporary session that was removed afterwards.
 
 ## Architecture decisions
 
@@ -330,6 +332,23 @@ session — no Techloft record was changed):
 - after the probe the database was checked again: no fixture sessions, no
   corrections, no correction audit rows.
 
+Corrections on device (CPH2325, Techloft owner session, 20 Oct):
+
+- the dashboard flagged the temporary open session ("One session is still open
+  from a previous day", "Suresh — Since 14 Oct, 09:00") and the report showed
+  it as "Open from previous day / Not yet / Elapsed";
+- the correction sheet opened with the record context ("Suresh · Wednesday, 14
+  October"), the work date, the time, the reason field and the note that the
+  original punch record is kept; saving without a reason was blocked inline
+  ("Add a reason for this correction.");
+- saving with a reason was confirmed by the server: the record switched to
+  "Corrected / Checked out 18:00 / Worked 9h 0m / Completed", the snackbar
+  read "Check-out corrected to 18:00." and the report refreshed by itself;
+- the Corrections screen listed "Suresh · 14 Oct · Check-out No check-out →
+  18:00" with the reason and "by Raghul · 20 Oct 2026 20:38";
+- the temporary session, its correction and its audit row were deleted
+  afterwards; the real 20 Oct session (15:37 → 15:40) was never touched.
+
 ## Next slices
 
 3. ~~**Org creation + join UI (Flutter)**~~ — shipped: setup gate, owner create form
@@ -378,7 +397,7 @@ session — no Techloft record was changed):
   labelling, empty, error/retry, owner denial); owner report (summary, preset
   dates, employee filter, empty, error/retry, employee denial) and the owner
   dashboard overview (metrics, checked-in list, recent activity, unresolved
-  prior sessions, overview failure). 170 tests passing. The workplace editor
+  prior sessions, overview failure). 171 tests passing. The workplace editor
   and camera scanner are not widget-tested: they need a network map / real
   camera plugin, so those paths are verified manually on device
   (validators/parser cover the pure logic).
@@ -409,11 +428,13 @@ session — no Techloft record was changed):
   exercised on the Android device yet (phone disconnected during the final
   build). QR attendance remains off for Techloft until the owner enables it in
   Attendance rules.
-- The corrections slice is verified by widget tests and by a live backend
-  probe, but the Android walkthrough (open the sheet, save a correction, see
-  the "Corrected" label and the audit list) is still pending: the phone
-  disconnected before the new build could be installed. The next device
-  session should cover that flow with a temporary session.
+- The corrections slice is verified by widget tests, by a live backend probe
+  and by an on-device walkthrough on the CPH2325 (temporary session, removed
+  afterwards). That walkthrough caught a real bug: the report was not
+  refreshed after a correction because the refresh invalidated a different
+  provider instance than the one on screen (the period key silently changed
+  once the server's work date was known). The refresh now targets the exact
+  watched instance, and the report fetches once instead of twice on open.
 - Techloft's Main Shop still has one live QR token generated before the scanner
   UI. If its print is unavailable, generate a replacement from Workplaces; the
   old print stops working immediately.

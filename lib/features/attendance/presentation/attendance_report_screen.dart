@@ -44,6 +44,7 @@ class _AttendanceReportScreenState
   DateTime? _customFrom;
   DateTime? _customTo;
   DateTime? _orgToday;
+  bool _presetChosen = false;
   String? _memberId;
   String? _initialMemberName;
 
@@ -54,11 +55,14 @@ class _AttendanceReportScreenState
     _initialMemberName = widget.initialMemberName;
   }
 
+  /// The period the screen is currently showing. Until the owner picks a
+  /// period, the server decides (the organisation's current month) so the
+  /// provider key stays stable and the report is fetched once, not twice.
   AttendanceReportQuery _query(String organisationId) {
     DateTime? from;
     DateTime? to;
     final today = _orgToday;
-    if (_preset == AttendanceReportRangePreset.thisMonth && today == null) {
+    if (_preset == AttendanceReportRangePreset.thisMonth && !_presetChosen) {
       from = null;
       to = null;
     } else if (_preset == AttendanceReportRangePreset.custom) {
@@ -103,6 +107,7 @@ class _AttendanceReportScreenState
     }
     setState(() {
       _preset = AttendanceReportRangePreset.custom;
+      _presetChosen = true;
       _customFrom = from;
       _customTo = to;
     });
@@ -116,7 +121,10 @@ class _AttendanceReportScreenState
       await _pickCustomRange(history);
       return;
     }
-    setState(() => _preset = preset);
+    setState(() {
+      _preset = preset;
+      _presetChosen = true;
+    });
   }
 
   Future<void> _pickMember(AttendanceHistory history) async {
@@ -155,10 +163,14 @@ class _AttendanceReportScreenState
 
   /// Opens the correction sheet for one record. The sheet only returns after
   /// the server confirmed the change, so the report is refreshed afterwards.
+  ///
+  /// The refresh invalidates the exact provider instance this screen is
+  /// watching ([query]); recomputing the query here would target a different
+  /// instance and leave stale rows on screen.
   Future<void> _openCorrection(
     AttendanceHistoryEntry entry,
     AttendanceHistory history,
-    String organisationId,
+    AttendanceReportQuery query,
   ) async {
     final result = await AttendanceCorrectionSheet.show(
       context,
@@ -168,9 +180,9 @@ class _AttendanceReportScreenState
     );
     if (result == null || !mounted) return;
 
-    ref.invalidate(attendanceReportProvider(_query(organisationId)));
-    ref.invalidate(ownerAttendanceOverviewProvider(organisationId));
-    ref.invalidate(attendanceCorrectionsProvider(organisationId));
+    ref.invalidate(attendanceReportProvider(query));
+    ref.invalidate(ownerAttendanceOverviewProvider(query.organisationId));
+    ref.invalidate(attendanceCorrectionsProvider(query.organisationId));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -282,7 +294,7 @@ class _AttendanceReportScreenState
                         _selectPreset(preset, history),
                     onPickMember: () => _pickMember(history),
                     onCorrect: (entry) =>
-                        _openCorrection(entry, history, organisation.id),
+                        _openCorrection(entry, history, query),
                     onCopyCsv: history.isEmpty
                         ? null
                         : () => copyToClipboard(
