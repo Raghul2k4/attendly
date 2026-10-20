@@ -61,6 +61,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('Maximum GPS inaccuracy'), findsOneWidget);
       expect(find.textContaining('50 metres'), findsWidgets);
+      expect(
+        find.textContaining('Readings weaker than this are rejected'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('saves QR, Saturday and grace changes exactly once', (

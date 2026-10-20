@@ -474,9 +474,6 @@ class _SettingsFormState extends ConsumerState<_SettingsForm> {
                 initialValue: _maxAccuracyMeters,
                 decoration: const InputDecoration(
                   labelText: 'Maximum GPS inaccuracy',
-                  helperText:
-                      'Readings weaker than this are rejected. 50 m is a good '
-                      'starting point in towns and offices.',
                 ),
                 items: [
                   for (final metres in accuracyOptions)
@@ -492,6 +489,12 @@ class _SettingsFormState extends ConsumerState<_SettingsForm> {
                           setState(() => _maxAccuracyMeters = value);
                         }
                       },
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Readings weaker than this are rejected. 50 m is a good '
+                'starting point in towns and offices.',
+                style: textTheme.bodySmall?.copyWith(color: AppColors.slate500),
               ),
             ],
           ),
