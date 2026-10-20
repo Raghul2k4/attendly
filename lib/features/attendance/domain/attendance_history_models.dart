@@ -45,6 +45,16 @@ Duration? _seconds(Object? value) {
   return seconds < 0 ? Duration.zero : Duration(seconds: seconds);
 }
 
+/// Parses a server date label (`YYYY-MM-DD`) as a calendar date. These are
+/// organisation-local labels, never instants.
+DateTime? parseServerDate(Object? value) => _dateOnly(value);
+
+/// Parses a server timestamp into a UTC instant.
+DateTime? parseServerInstant(Object? value) => _utcDateTime(value);
+
+/// Parses a server duration in seconds.
+Duration? parseServerDuration(Object? value) => _seconds(value);
+
 Map<String, dynamic> _map(Object? value) =>
     (value as Map?)?.cast<String, dynamic>() ?? const {};
 
@@ -73,6 +83,8 @@ class AttendanceHistoryEntry {
     required this.isOpen,
     required this.isStaleOpen,
     required this.crossesMidnight,
+    required this.isCorrected,
+    required this.correctedAt,
     required this.duration,
     required this.elapsed,
   });
@@ -99,6 +111,8 @@ class AttendanceHistoryEntry {
       isOpen: json['is_open'] as bool? ?? json['check_out_at'] == null,
       isStaleOpen: json['is_stale_open'] as bool? ?? false,
       crossesMidnight: json['crosses_midnight'] as bool? ?? false,
+      isCorrected: json['is_corrected'] as bool? ?? false,
+      correctedAt: _utcDateTime(json['corrected_at']),
       duration: _seconds(json['duration_seconds']),
       elapsed: _seconds(json['elapsed_seconds']),
     );
@@ -119,6 +133,11 @@ class AttendanceHistoryEntry {
   final bool isOpen;
   final bool isStaleOpen;
   final bool crossesMidnight;
+
+  /// True when an owner corrected this record. The original punch events stay
+  /// untouched on the server; the correction is stored separately.
+  final bool isCorrected;
+  final DateTime? correctedAt;
   final Duration? duration;
   final Duration? elapsed;
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../app/theme/app_colors.dart';
@@ -15,6 +16,7 @@ import '../domain/attendance_csv.dart';
 import '../domain/attendance_history_models.dart';
 import '../domain/attendance_period.dart';
 import 'attendance_providers.dart';
+import 'widgets/attendance_correction_sheet.dart';
 import 'widgets/attendance_history_summary_card.dart';
 import 'widgets/attendance_record_card.dart';
 
@@ -151,6 +153,33 @@ class _AttendanceReportScreenState
     return _initialMemberName ?? 'Selected employee';
   }
 
+  /// Opens the correction sheet for one record. The sheet only returns after
+  /// the server confirmed the change, so the report is refreshed afterwards.
+  Future<void> _openCorrection(
+    AttendanceHistoryEntry entry,
+    AttendanceHistory history,
+    String organisationId,
+  ) async {
+    final result = await AttendanceCorrectionSheet.show(
+      context,
+      entry: entry,
+      timezone: history.timezone,
+      today: history.today,
+    );
+    if (result == null || !mounted) return;
+
+    ref.invalidate(attendanceReportProvider(_query(organisationId)));
+    ref.invalidate(ownerAttendanceOverviewProvider(organisationId));
+    ref.invalidate(attendanceCorrectionsProvider(organisationId));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Check-out corrected to ${result.correctedCheckOutTime}.',
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final accountAsync = ref.watch(myAccountProvider);
@@ -159,6 +188,13 @@ class _AttendanceReportScreenState
         title: Text(
           _memberId == null ? 'Attendance report' : 'Employee attendance',
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Corrections',
+            onPressed: () => context.push('/attendance-corrections'),
+            icon: const Icon(Icons.history_toggle_off_rounded),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,
@@ -245,6 +281,8 @@ class _AttendanceReportScreenState
                     onPresetSelected: (preset) =>
                         _selectPreset(preset, history),
                     onPickMember: () => _pickMember(history),
+                    onCorrect: (entry) =>
+                        _openCorrection(entry, history, organisation.id),
                     onCopyCsv: history.isEmpty
                         ? null
                         : () => copyToClipboard(
@@ -277,6 +315,7 @@ class _ReportBody extends StatelessWidget {
     required this.onPresetSelected,
     required this.onPickMember,
     required this.onCopyCsv,
+    required this.onCorrect,
   });
 
   final AttendanceHistory history;
@@ -288,6 +327,7 @@ class _ReportBody extends StatelessWidget {
   final ValueChanged<AttendanceReportRangePreset> onPresetSelected;
   final VoidCallback onPickMember;
   final VoidCallback? onCopyCsv;
+  final ValueChanged<AttendanceHistoryEntry> onCorrect;
 
   @override
   Widget build(BuildContext context) {
@@ -364,6 +404,7 @@ class _ReportBody extends StatelessWidget {
               AttendanceRecordCard(
                 entry: entry,
                 showEmployee: selectedMemberId == null,
+                onCorrect: () => onCorrect(entry),
               ),
               const SizedBox(height: AppSpacing.sm),
             ],

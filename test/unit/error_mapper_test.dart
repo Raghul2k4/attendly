@@ -112,6 +112,42 @@ void main() {
       expect(mapped.message, contains('one year'));
     });
 
+    test('a correction without a reason asks for one', () {
+      final mapped = mapBackendError(att('invalid_correction_reason'));
+      expect(mapped.kind, AppErrorKind.invalidInput);
+      expect(mapped.message, contains('reason'));
+    });
+
+    test('a correction before the check-in explains the order', () {
+      final mapped = mapBackendError(att('correction_before_check_in'));
+      expect(mapped.kind, AppErrorKind.invalidInput);
+      expect(mapped.message, contains('before the check-in'));
+    });
+
+    test('a correction in the future is rejected clearly', () {
+      final mapped = mapBackendError(att('correction_in_future'));
+      expect(mapped.kind, AppErrorKind.invalidInput);
+      expect(mapped.message, contains('future'));
+    });
+
+    test('a correction outside the work date explains the rule', () {
+      final mapped = mapBackendError(att('correction_outside_work_date'));
+      expect(mapped.kind, AppErrorKind.invalidInput);
+      expect(mapped.message, contains('work date'));
+    });
+
+    test('repeating a correction is reported as a conflict', () {
+      final mapped = mapBackendError(att('correction_already_applied'));
+      expect(mapped.kind, AppErrorKind.conflict);
+      expect(mapped.message, contains('already applied'));
+    });
+
+    test('a missing session asks the owner to refresh', () {
+      final mapped = mapBackendError(att('attendance_session_not_found'));
+      expect(mapped.kind, AppErrorKind.conflict);
+      expect(mapped.message, contains('Refresh'));
+    });
+
     test('unknown ATT codes stay honest about saving failing', () {
       final mapped = mapBackendError(att('some_future_code'));
       expect(mapped.kind, AppErrorKind.server);

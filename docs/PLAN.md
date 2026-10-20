@@ -40,6 +40,14 @@ Concise Stage 2 plan per AGENTS.md. Living document; update as slices land.
   clean. Migration applied to the hosted project and the RPCs were verified
   against real Techloft records (see the reports suite below), then confirmed
   on the CPH2325 with the existing owner session.
+- **Corrections & audit slice shipped**: owners can correct a recorded
+  check-out (including a missed punch-out) from the attendance report. The
+  server validates the owner, the reason and the time, keeps the previous
+  value, writes an audit row and only then confirms. A Corrections screen
+  lists every manual change with its reason, actor and time; corrected
+  records are labelled in both the owner report and the employee history.
+  170 unit/widget tests pass; analyzer clean. Backend behaviour verified
+  against the hosted project with a rolled-back probe.
 
 ## Architecture decisions
 
@@ -155,6 +163,25 @@ Migrations (`supabase/migrations/`):
     366-day range limit all live in PostgreSQL, using the organisation's IANA
     timezone. Index `attendance_sessions_org_work_date_idx` supports the range
     scans.
+- `20261020001000_attendance_corrections.sql` — owner-authorised corrections
+  with an audit trail:
+  - `attendance_corrections` (session, member, original check-out, corrected
+    check-out, reason, acting owner, timestamp) with RLS and **no client
+    grants** — reachable only through the owner-checked RPCs.
+  - `attendance_sessions.corrected_at` / `corrected_by` mark a corrected
+    record so reports can label it without a join.
+  - `correct_attendance_checkout(session, date, time, reason)` — owner only;
+    the client sends a wall-clock date/time that the server converts in the
+    organisation timezone. The session row is locked, the reason is required
+    (5-500 chars), the new check-out must be after the check-in, not in the
+    future and on the work date or the next day. The original punch events are
+    untouched, the previous check-out is preserved, and an
+    `attendance_corrected` audit row names the acting owner.
+  - `list_attendance_corrections(org, limit)` — the owner-facing audit trail
+    (who, when, why, before → after).
+  - `private.with_corrections` marks corrected records in the report/history
+    payloads, so both the owner report and the employee history show a
+    "Corrected" label.
 
 Error contract: functions raise `ATT:<code>` (P0001). Client maps codes to copy.
 Codes: `not_authenticated`, `invalid_org_name`, `unknown_plan`, `unknown_timezone`,
@@ -167,7 +194,11 @@ Codes: `not_authenticated`, `invalid_org_name`, `unknown_plan`, `unknown_timezon
 `org_reassignment_not_allowed`, `workplace_not_found`, `workplace_inactive`,
 `invalid_event_type`, `invalid_method`, `invalid_idempotency_key`,
 `not_active_employee`, `attendance_not_configured`, `method_disabled`,
-`rate_limited`, `punch_conflict`, `invalid_date_range`, `date_range_too_large`.
+`rate_limited`, `punch_conflict`, `invalid_date_range`, `date_range_too_large`,
+`invalid_correction_reason`, `invalid_correction_time`,
+`correction_before_check_in`, `correction_in_future`,
+`correction_outside_work_date`, `correction_no_change`,
+`correction_already_applied`, `attendance_session_not_found`.
 
 Product invariant decided here: **one organisation per owner** (unique index,
 idempotent create returns the existing org) and **one active employee membership
@@ -273,6 +304,32 @@ Reports/history suite (20 Oct, hosted project, real Techloft records):
   an expression, not a schema-qualified function). The file in
   `supabase/migrations/` is the version that was verified.
 
+Corrections suite (20 Oct, hosted project, rolled-back probe with a temporary
+session — no Techloft record was changed):
+
+- happy path: closing a missed check-out returned the confirmed time
+  (`18:30`), the member name and the recomputed duration (9 h 30 m); the
+  session row kept `check_out_at = 18:30 IST` with `corrected_at` /
+  `corrected_by` set.
+- the correction row preserved the original (missing) check-out, the new time,
+  the reason and the acting owner; the audit trail gained an
+  `attendance_corrected` row naming the owner and the reason.
+- the owner report then showed the corrected record with `is_corrected = true`,
+  `check_out_time = 18:30` and a recomputed duration; the corrections list
+  returned it as "No check-out → 18:30" with the actor name.
+- rejections: repeated correction `ATT:correction_already_applied`; missing
+  reason `ATT:invalid_correction_reason`; check-out before check-in
+  `ATT:correction_before_check_in`; future check-out
+  `ATT:correction_in_future`; work date outside the session
+  `ATT:correction_outside_work_date`; correcting to the stored value
+  `ATT:correction_no_change`; unknown session
+  `ATT:attendance_session_not_found`.
+- authorization: the employee → `ATT:not_org_owner`; another organisation's
+  owner → `ATT:not_org_owner`; listing corrections as a foreign owner →
+  `ATT:not_org_owner`; anonymous → `ATT:not_authenticated`.
+- after the probe the database was checked again: no fixture sessions, no
+  corrections, no correction audit rows.
+
 ## Next slices
 
 3. ~~**Org creation + join UI (Flutter)**~~ — shipped: setup gate, owner create form
@@ -296,7 +353,10 @@ Reports/history suite (20 Oct, hosted project, real Techloft records):
    report and owner dashboard overview; date presets, employee filter, period
    totals, unresolved-session labels and a quoted, formula-injection-safe CSV
    copy. Verified on the CPH2325 with the live owner session.
-7. **Corrections & audit** — reason-required adjustments preserving originals.
+7. ~~**Corrections & audit**~~ — shipped: owner-only check-out corrections with
+   a required reason, the original value preserved, an `attendance_corrected`
+   audit row naming the acting owner, a "Corrected" label in the report and
+   history, and an owner-facing Corrections list.
 8. **Release prep** — README/Play checklist, signed bundle config, privacy copy.
 
 ## Testing strategy
@@ -306,7 +366,7 @@ Reports/history suite (20 Oct, hosted project, real Techloft records):
   `HH:mm:ss` settings rows), state→action, QR payload shape, duration/timer/
   distance formatting and rejection copy (done); report/history parsing, date
   presets and calendar arithmetic, CSV quoting and formula-injection
-  neutralisation (done).
+  neutralisation (done); correction payload parsing (done).
 - Widget: forms, loading/empty/error, role choice, a11y semantics, button states
   (auth); org create/join validation + navigation, owner roster/seat usage,
   invite result sheet, workplaces list (empty/list/error), QR card
@@ -318,10 +378,10 @@ Reports/history suite (20 Oct, hosted project, real Techloft records):
   labelling, empty, error/retry, owner denial); owner report (summary, preset
   dates, employee filter, empty, error/retry, employee denial) and the owner
   dashboard overview (metrics, checked-in list, recent activity, unresolved
-  prior sessions, overview failure). 149 tests passing. The workplace editor and
-  camera scanner are not widget-tested: they need a network map / real camera
-  plugin, so those paths are verified manually on device (validators/parser
-  cover the pure logic).
+  prior sessions, overview failure). 170 tests passing. The workplace editor
+  and camera scanner are not widget-tested: they need a network map / real
+  camera plugin, so those paths are verified manually on device
+  (validators/parser cover the pure logic).
 - Router: welcome→auth→home gate transitions under fake auth stream (done).
 - Backend: versioned SQL probes in `supabase/tests/`; behavioural suites executed
   via REST against the linked project (suites A/B/C, attendance/QR, and
@@ -358,9 +418,11 @@ Reports/history suite (20 Oct, hosted project, real Techloft records):
 - A lost workplace QR cannot be re-displayed (hash-only storage); owners replace
   it, which immediately invalidates the old print. No QR print/share sheet yet —
   the payload is copyable and rendered on screen.
-- Reports and history are read-only so far: an owner can inspect and export
-  recorded sessions, but cannot yet correct a missed check-out. That is the next
-  slice (reason-required corrections with an audit trail).
+- Reports and history are read-only for employees: only an owner can correct a
+  check-out, and every correction is kept in the audit trail.
+- Corrections currently cover the check-out time only. A check-in correction
+  (for example a wrong workplace) would also change the stored lateness
+  classification, so it is deliberately out of scope for the first release.
 
 ## Major risks / mitigations
 

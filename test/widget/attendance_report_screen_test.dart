@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/attendance_history_fixtures.dart';
+import '../support/fake_attendance_correction_repository.dart';
 import '../support/fake_attendance_history_repository.dart';
 import '../support/organisation_fixtures.dart';
 
@@ -20,6 +21,7 @@ void main() {
       String? initialMemberId,
       String? initialMemberName,
       bool owner = true,
+      FakeAttendanceCorrectionRepository? correctionRepository,
     }) async {
       tester.view.physicalSize = const Size(1080, 4200);
       tester.view.devicePixelRatio = 3;
@@ -33,6 +35,9 @@ void main() {
               (ref) async => owner ? testOwnerAccount() : testEmployeeAccount(),
             ),
             attendanceHistoryRepositoryProvider.overrideWithValue(repository),
+            attendanceCorrectionRepositoryProvider.overrideWithValue(
+              correctionRepository ?? FakeAttendanceCorrectionRepository(),
+            ),
           ],
           child: MaterialApp(
             theme: buildAppTheme(),
@@ -195,6 +200,30 @@ void main() {
         find.text('Only the business owner can view team reports.'),
         findsOneWidget,
       );
+    });
+
+    testWidgets('the owner can open the correction sheet for a record', (
+      tester,
+    ) async {
+      final repository = echoingRepository(sessions: [testHistoryEntry()]);
+      await pumpScreen(tester, repository);
+
+      expect(find.text('Correct check-out'), findsOneWidget);
+      await tester.tap(find.text('Correct check-out'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Reason'), findsOneWidget);
+      expect(find.text('Check-out date'), findsOneWidget);
+      expect(find.text('Save correction'), findsOneWidget);
+    });
+
+    testWidgets('a corrected record is labelled as corrected', (tester) async {
+      final repository = echoingRepository(
+        sessions: [testHistoryEntry(isCorrected: true)],
+      );
+      await pumpScreen(tester, repository);
+
+      expect(find.text('Corrected'), findsOneWidget);
     });
   });
 }

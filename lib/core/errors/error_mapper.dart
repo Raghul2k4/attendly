@@ -184,6 +184,38 @@ AppException mapBackendError(Object error, {StackTrace? stackTrace}) {
         'Reports can cover up to one year at a time.',
         AppErrorKind.invalidInput,
       ),
+      'invalid_correction_reason' => (
+        'Add a short reason so the change is understandable later.',
+        AppErrorKind.invalidInput,
+      ),
+      'invalid_correction_time' => (
+        'Choose the date and time the employee actually checked out.',
+        AppErrorKind.invalidInput,
+      ),
+      'correction_before_check_in' => (
+        'The check-out time can’t be before the check-in time.',
+        AppErrorKind.invalidInput,
+      ),
+      'correction_in_future' => (
+        'The check-out time can’t be in the future.',
+        AppErrorKind.invalidInput,
+      ),
+      'correction_outside_work_date' => (
+        'The check-out time must be on the work date or the next day.',
+        AppErrorKind.invalidInput,
+      ),
+      'correction_no_change' => (
+        'That’s already the recorded check-out time.',
+        AppErrorKind.conflict,
+      ),
+      'correction_already_applied' => (
+        'That correction was already applied.',
+        AppErrorKind.conflict,
+      ),
+      'attendance_session_not_found' => (
+        'That attendance record couldn’t be found. Refresh and try again.',
+        AppErrorKind.conflict,
+      ),
       'invalid_event_type' || 'invalid_method' || 'invalid_idempotency_key' => (
         'We couldn’t record this punch. Update the app and try again.',
         AppErrorKind.server,

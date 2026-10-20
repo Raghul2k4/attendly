@@ -17,6 +17,8 @@ class AppTextField extends StatefulWidget {
     this.autofillHints,
     this.textCapitalization = TextCapitalization.none,
     this.onFieldSubmitted,
+    this.maxLines = 1,
+    this.minLines,
   });
 
   final String label;
@@ -29,6 +31,8 @@ class AppTextField extends StatefulWidget {
   final Iterable<String>? autofillHints;
   final TextCapitalization textCapitalization;
   final ValueChanged<String>? onFieldSubmitted;
+  final int maxLines;
+  final int? minLines;
 
   @override
   State<AppTextField> createState() => _AppTextFieldState();
@@ -53,6 +57,8 @@ class _AppTextFieldState extends State<AppTextField> {
           autofillHints: widget.autofillHints,
           textCapitalization: widget.textCapitalization,
           onFieldSubmitted: widget.onFieldSubmitted,
+          maxLines: widget.maxLines,
+          minLines: widget.minLines,
           obscureText: _hidden,
           autocorrect: false,
           enableSuggestions: !widget.obscure,

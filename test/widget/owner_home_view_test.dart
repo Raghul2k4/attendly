@@ -26,7 +26,7 @@ void main() {
       required List<Membership> members,
       FakeAttendanceHistoryRepository? historyRepository,
     }) async {
-      tester.view.physicalSize = const Size(1080, 5400);
+      tester.view.physicalSize = const Size(1080, 6300);
       tester.view.devicePixelRatio = 3;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);

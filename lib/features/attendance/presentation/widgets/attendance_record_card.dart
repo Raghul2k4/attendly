@@ -15,10 +15,15 @@ class AttendanceRecordCard extends StatelessWidget {
     super.key,
     required this.entry,
     this.showEmployee = false,
+    this.onCorrect,
   });
 
   final AttendanceHistoryEntry entry;
   final bool showEmployee;
+
+  /// Owner-only action that opens the correction sheet. When null the card is
+  /// read-only, which is what employees see.
+  final VoidCallback? onCorrect;
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +35,7 @@ class AttendanceRecordCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (showEmployee || exceptional) ...[
+          if (showEmployee || exceptional || entry.isCorrected) ...[
             if (showEmployee)
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -88,6 +93,12 @@ class AttendanceRecordCard extends StatelessWidget {
                     label: 'Inactive staff',
                     background: AppColors.slate200.withValues(alpha: .45),
                     foreground: AppColors.slate500,
+                  ),
+                if (entry.isCorrected)
+                  const AppBadge(
+                    label: 'Corrected',
+                    background: AppColors.emerald50,
+                    foreground: AppColors.emerald700,
                   ),
               ],
             ),
@@ -153,6 +164,17 @@ class AttendanceRecordCard extends StatelessWidget {
               ],
             ],
           ),
+          if (onCorrect != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            OutlinedButton.icon(
+              onPressed: onCorrect,
+              icon: const Icon(
+                Icons.edit_calendar_outlined,
+                size: AppIconSize.sm,
+              ),
+              label: const Text('Correct check-out'),
+            ),
+          ],
         ],
       ),
     );

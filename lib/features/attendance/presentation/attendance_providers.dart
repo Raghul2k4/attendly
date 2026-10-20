@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/data/auth_repository.dart' show supabaseClientProvider;
+import '../data/attendance_correction_repository.dart';
 import '../data/attendance_history_repository.dart';
 import '../data/attendance_repository.dart';
 import '../data/attendance_settings_repository.dart';
+import '../domain/attendance_correction_models.dart';
 import '../domain/attendance_history_models.dart';
 import '../domain/attendance_models.dart';
 
@@ -93,5 +95,22 @@ final ownerAttendanceOverviewProvider = FutureProvider.autoDispose
       (ref, organisationId) => ref
           .watch(attendanceHistoryRepositoryProvider)
           .fetchOwnerOverview(organisationId),
+      retry: (retryCount, error) => null,
+    );
+
+/// Owner-only corrections. Widget tests override this with a fake.
+final attendanceCorrectionRepositoryProvider =
+    Provider<AttendanceCorrectionRepository>(
+      (ref) => SupabaseAttendanceCorrectionRepository(
+        ref.watch(supabaseClientProvider),
+      ),
+    );
+
+/// The organisation's correction history (audit trail).
+final attendanceCorrectionsProvider = FutureProvider.autoDispose
+    .family<List<AttendanceCorrection>, String>(
+      (ref, organisationId) => ref
+          .watch(attendanceCorrectionRepositoryProvider)
+          .fetchCorrections(organisationId),
       retry: (retryCount, error) => null,
     );

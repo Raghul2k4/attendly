@@ -10,6 +10,7 @@ import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_error_panel.dart';
 import '../../../../core/widgets/app_text_field.dart';
+import '../../../../core/widgets/sheet_handle.dart';
 import '../../domain/organisation_models.dart';
 import '../organisation_providers.dart';
 
@@ -120,7 +121,7 @@ class _InviteStaffSheetState extends ConsumerState<InviteStaffSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _SheetHandle(),
+          const SheetHandle(),
           Text('Add a team member', style: textTheme.titleLarge),
           const SizedBox(height: AppSpacing.sm),
           Text(
@@ -164,7 +165,7 @@ class _InviteStaffSheetState extends ConsumerState<InviteStaffSheet> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _SheetHandle(),
+        const SheetHandle(),
         Row(
           children: [
             Container(
@@ -293,25 +294,6 @@ class _CodeBlock extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SheetHandle extends StatelessWidget {
-  const _SheetHandle();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        width: 36,
-        height: 4,
-        margin: const EdgeInsets.only(bottom: AppSpacing.lg),
-        decoration: BoxDecoration(
-          color: AppColors.slate200,
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-        ),
       ),
     );
   }

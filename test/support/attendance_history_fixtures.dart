@@ -18,6 +18,8 @@ AttendanceHistoryEntry testHistoryEntry({
   bool isOpen = false,
   bool isStaleOpen = false,
   bool crossesMidnight = false,
+  bool isCorrected = false,
+  DateTime? correctedAt,
   Duration duration = const Duration(hours: 8, minutes: 30),
   Duration elapsed = const Duration(hours: 2, minutes: 5),
 }) {
@@ -43,6 +45,8 @@ AttendanceHistoryEntry testHistoryEntry({
     isOpen: isOpen,
     isStaleOpen: isStaleOpen,
     crossesMidnight: crossesMidnight,
+    isCorrected: isCorrected,
+    correctedAt: correctedAt,
     duration: isOpen ? null : duration,
     elapsed: isOpen ? elapsed : null,
   );

@@ -253,6 +253,13 @@ class _OwnerDashboard extends ConsumerWidget {
           subtitle: 'Daily records, late arrivals, open sessions and CSV',
           onTap: () => context.push('/attendance-report'),
         ),
+        const SizedBox(height: AppSpacing.md),
+        _DashboardEntry(
+          icon: Icons.history_toggle_off_rounded,
+          title: 'Corrections',
+          subtitle: 'Manual changes to recorded attendance, with reasons',
+          onTap: () => context.push('/attendance-corrections'),
+        ),
         const SizedBox(height: AppSpacing.xl),
         Row(
           children: [
