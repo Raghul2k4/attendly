@@ -409,6 +409,11 @@ session — no Techloft record was changed):
   exercised on the Android device yet (phone disconnected during the final
   build). QR attendance remains off for Techloft until the owner enables it in
   Attendance rules.
+- The corrections slice is verified by widget tests and by a live backend
+  probe, but the Android walkthrough (open the sheet, save a correction, see
+  the "Corrected" label and the audit list) is still pending: the phone
+  disconnected before the new build could be installed. The next device
+  session should cover that flow with a temporary session.
 - Techloft's Main Shop still has one live QR token generated before the scanner
   UI. If its print is unavailable, generate a replacement from Workplaces; the
   old print stops working immediately.
