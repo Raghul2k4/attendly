@@ -52,3 +52,6 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Locally built APKs handed to testers (never commit binaries).
+/dist/

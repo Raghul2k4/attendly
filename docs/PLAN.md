@@ -392,6 +392,17 @@ Release build (20 Oct, local):
   `versionName 1.0.0` and package `com.techloft.attendance`.
 - `jarsigner -verify -verbose -certs` showed every entry signed with
   `CN=Techloft Attendance` (the generated upload key, valid to 2054-03-07).
+- first release install failed at the splash: R8 renamed
+  `kotlin.coroutines.Continuation` and removed `kotlin.Result`, so the
+  shared_preferences Pigeon JNI lookup threw `NoSuchMethodError` /
+  `ClassNotFoundException` before `runApp`. `android/app/proguard-rules.pro`
+  keeps the plugin entry points plus `Result`, `Result$Failure`, `Unit`,
+  `Continuation`, `IntrinsicsKt` and `CoroutineSingletons`. The rebuilt arm64
+  APK reaches the welcome screen with no `E/flutter` errors; the AAB was
+  rebuilt with the same rules. Debug builds never reproduced this.
+- a two-phone tester script was added at `docs/TESTER_GUIDE.md` (owner on one
+  phone, employee on the other) covering onboarding, geofence, QR, corrections,
+  permissions, offline behaviour, deletion and a bug-report template.
 - the debug APK was rebuilt and installed over the existing app
   (`lastUpdateTime` 21:30, `firstInstallTime` unchanged, version 1.0.0), so the
   signed-in owner session survived the upgrade. The phone was locked at the

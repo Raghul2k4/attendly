@@ -77,6 +77,14 @@ built at `build/app/outputs/bundle/release/app-release.aab` (64.9 MB).
 carry `X.509, CN=Techloft Attendance, OU=Mobile, O=Techloft, L=Chennai,
 ST=Tamil Nadu, C=IN`.
 
+✅ Release smoke test on the CPH2325: the arm64 APK was installed and reaches
+the welcome screen. The first attempt hung on the splash because R8 renamed
+`kotlin.coroutines.Continuation` (changing the JNI method descriptor) and
+stripped `kotlin.Result`, both of which Pigeon's JNI bridge looks up by name.
+`android/app/proguard-rules.pro` keeps those types and the plugin entry points;
+the AAB and split APKs were rebuilt with the rules. Always install and launch a
+release APK after changing plugins — this failure did not reproduce in debug.
+
 Upload the `.aab` in Play Console → Testing → Internal testing (recommended
 first), then promote to production.
 
@@ -199,6 +207,10 @@ not use real staff accounts. Suggested setup:
      rules).
    - Account deletion: open Account → Delete account. Use a throwaway reviewer
      owner because deleting an owner deletes the business.
+
+The full two-phone script (owner + employee, geofence, QR, corrections,
+permissions, offline, deletion) is `docs/TESTER_GUIDE.md`. Reuse it for the
+reviewer run and for internal testing.
 
 ## 8. Release checklist
 

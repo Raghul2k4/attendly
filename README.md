@@ -94,6 +94,20 @@ the privacy policy (in-app copy plus hostable text) is
 `docs/legal/PRIVACY_POLICY.md`. Both need a monitored publisher contact and a
 public HTTPS URL before publishing.
 
+## Tester build
+
+Share `dist/attendance-1.0.0-arm64-v8a.apk` (built locally, gitignored) with
+testers. The two-phone walkthrough — owner on one phone, employee on the other —
+is in [`docs/TESTER_GUIDE.md`](docs/TESTER_GUIDE.md). It covers onboarding, the
+geofence, QR scanning, corrections, permissions, offline behaviour and account
+deletion, with a pass/fail checklist and a bug-report template.
+
+Release builds run R8. A keep-rule file
+(`android/app/proguard-rules.pro`) protects the Kotlin classes that Pigeon's JNI
+bridge resolves by name; without it the release APK hangs on the splash screen
+while debug builds work. Rebuild and smoke-test a release APK after changing
+plugins.
+
 ## Project layout
 
 ```
