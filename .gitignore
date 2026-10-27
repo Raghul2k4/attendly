@@ -11,6 +11,11 @@ build/
 .env
 .env.local
 
+# Release APKs — do not commit to git (GitHub LFS serves 2KB pointers instead
+# of real binaries). Upload to GitHub Releases separately and set
+# VITE_APK_URL_64 / VITE_APK_URL_32 in Netlify environment variables.
+releases/
+
 # IDE
 .idea/
 .vscode/
