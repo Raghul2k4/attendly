@@ -138,8 +138,17 @@ AppException mapBackendError(Object error, {StackTrace? stackTrace}) {
         AppErrorKind.permission,
       ),
       'plan_limit_reached' => (
-        'Your plan is full. Deactivate a team member before adding someone '
-            'new — or upgrade your plan.',
+        'This plan’s staff limit is reached — try deactivating a team member or '
+            'upgrading the plan.',
+        AppErrorKind.conflict,
+      ),
+      'qr_not_generated' => (
+        'No QR code is active for this workplace yet. Generate one first.',
+        AppErrorKind.conflict,
+      ),
+      'qr_not_recoverable' => (
+        'This code was made before reprinting was supported. Replace it to get '
+            'a printable PDF.',
         AppErrorKind.conflict,
       ),
       'invalid_invite_token' => (

@@ -88,7 +88,7 @@ class _InviteStaffSheetState extends ConsumerState<InviteStaffSheet> {
   String _shareText(InviteResult result) {
     final token = Validators.formatInviteToken(result.inviteToken);
     return 'Hi ${result.employeeName}, join ${widget.organisationName} on '
-        'Attendance.\n\nStaff code: ${result.employeeCode}\n'
+        'Attendly.\n\nStaff code: ${result.employeeCode}\n'
         'Invite token: $token\n\nOpen the app, choose "Join with an invite '
         'token" and paste it. The token works once.';
   }

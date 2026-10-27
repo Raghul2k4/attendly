@@ -13,6 +13,7 @@ class FakeWorkplaceRepository implements WorkplaceRepository {
     this.createError,
     this.updateError,
     this.generateError,
+    this.fetchPayloadError,
     this.revokeError,
   }) : workplaces = workplaces ?? const [],
        qrStatuses = qrStatuses ?? const {};
@@ -26,6 +27,7 @@ class FakeWorkplaceRepository implements WorkplaceRepository {
   Object? createError;
   Object? updateError;
   Object? generateError;
+  Object? fetchPayloadError;
   Object? revokeError;
 
   int fetchCalls = 0;
@@ -33,6 +35,7 @@ class FakeWorkplaceRepository implements WorkplaceRepository {
   int createCalls = 0;
   int updateCalls = 0;
   int generateCalls = 0;
+  int fetchPayloadCalls = 0;
   int revokeCalls = 0;
 
   String? lastOrgId;
@@ -133,6 +136,18 @@ class FakeWorkplaceRepository implements WorkplaceRepository {
         createdAt: DateTime.utc(2026, 10, 19, 9, 30),
       ),
     };
+    return generateResult;
+  }
+
+  @override
+  Future<String> fetchQrPayload({
+    required String organisationId,
+    required String workplaceId,
+  }) async {
+    fetchPayloadCalls++;
+    lastOrgId = organisationId;
+    lastWorkplaceId = workplaceId;
+    if (fetchPayloadError != null) throw fetchPayloadError!;
     return generateResult;
   }
 

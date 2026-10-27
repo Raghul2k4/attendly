@@ -47,12 +47,17 @@ class PlanInfo {
   factory PlanInfo.fromRow(Map<String, dynamic> row) => PlanInfo(
     planId: row['plan_id'] as String,
     displayName: row['display_name'] as String? ?? 'Free',
-    maxActiveEmployees: (row['max_active_employees'] as num?)?.toInt() ?? 15,
+    maxActiveEmployees: (row['max_active_employees'] as num?)?.toInt(),
   );
 
   final String planId;
   final String displayName;
-  final int maxActiveEmployees;
+
+  /// Null means the plan has no staff limit (the free plan). Kept nullable so
+  /// a future paid plan can impose one without a schema change.
+  final int? maxActiveEmployees;
+
+  bool get hasStaffLimit => maxActiveEmployees != null;
 }
 
 class Membership {

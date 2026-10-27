@@ -110,7 +110,7 @@ class _OwnerDashboard extends ConsumerWidget {
         .toList(growable: false);
     final ownerMember = members.ownerMember;
     final plan = account.plan;
-    final limit = plan?.maxActiveEmployees ?? 15;
+    final limit = plan?.maxActiveEmployees;
     final used = members.activeEmployees;
     final pending = members.pendingInvites;
     final workplaces = ref.watch(workplacesProvider(organisation.id));
@@ -190,10 +190,10 @@ class _OwnerDashboard extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  Text('Seats', style: textTheme.titleMedium),
+                  Text('Team', style: textTheme.titleMedium),
                   const Spacer(),
                   Text(
-                    '$used of $limit used',
+                    used == 1 ? '1 active staff' : '$used active staff',
                     style: textTheme.labelLarge?.copyWith(
                       color: AppColors.emerald700,
                     ),
@@ -201,19 +201,25 @@ class _OwnerDashboard extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-                child: LinearProgressIndicator(
-                  value: limit == 0 ? 0 : (used / limit).clamp(0, 1),
-                  minHeight: 8,
-                  backgroundColor: AppColors.slate200,
+              if (limit != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  child: LinearProgressIndicator(
+                    value: limit == 0 ? 0 : (used / limit).clamp(0, 1),
+                    minHeight: 8,
+                    backgroundColor: AppColors.slate200,
+                  ),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.md),
+              ],
               Text(
-                '${plan?.displayName ?? 'Free'} plan includes $limit active '
-                'staff. Deactivating someone frees their seat — their '
-                'attendance history is kept.',
+                limit == null
+                    ? '${plan?.displayName ?? 'Free'} plan — unlimited staff, '
+                          'no seat limit. Deactivating someone pauses their '
+                          'access and keeps their attendance history.'
+                    : '${plan?.displayName ?? 'Free'} plan includes $limit '
+                          'active staff. Deactivating someone frees their seat '
+                          '— their attendance history is kept.',
                 style: textTheme.bodySmall?.copyWith(color: AppColors.slate500),
               ),
               if (pending > 0) ...[

@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_dimensions.dart';
+import '../../../core/device/punch_lockout.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/location/location_service.dart';
 import '../../../core/utils/clipboard_copy.dart';
@@ -40,6 +41,7 @@ class _EmployeeHomeViewState extends ConsumerState<EmployeeHomeView> {
   final _uuid = const Uuid();
   Timer? _ticker;
   bool _live = false;
+  DateTime? _lockedUntil;
   bool _punching = false;
   AttendanceNoticeData? _notice;
 
@@ -47,7 +49,40 @@ class _EmployeeHomeViewState extends ConsumerState<EmployeeHomeView> {
   void initState() {
     super.initState();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted && _live) setState(() {});
+      if (mounted && (_live || _lockedUntil != null)) setState(() {});
+    });
+  }
+
+  /// Reads the device lock straight from storage (not the cached provider) so
+  /// a punch never slips through on a value computed before the lock started.
+  Future<DateTime?> _currentLock() async {
+    final userId = widget.account.membership.userId;
+    if (userId == null) return null;
+    try {
+      final until = await ref
+          .read(punchLockoutStoreProvider)
+          .lockUntilFor(userId);
+      return until != null && until.isAfter(DateTime.now()) ? until : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _lockMessage(DateTime until) {
+    final time = DateFormat.jm().format(until.toLocal());
+    return 'Punching on this phone is paused until $time. A different account '
+        'signed in here less than an hour ago, so attendance is on hold. This '
+        'stops one phone punching in for several people.';
+  }
+
+  void _showLock(DateTime until) {
+    if (!mounted) return;
+    setState(() {
+      _notice = AttendanceNoticeData(
+        kind: AttendanceNoticeKind.warning,
+        title: 'Attendance locked on this phone',
+        message: _lockMessage(until),
+      );
     });
   }
 
@@ -74,6 +109,14 @@ class _EmployeeHomeViewState extends ConsumerState<EmployeeHomeView> {
     String? qrPayload,
   }) async {
     if (_punching) return;
+
+    final lock = await _currentLock();
+    if (!mounted) return;
+    if (lock != null) {
+      _showLock(lock);
+      return;
+    }
+
     setState(() {
       _punching = true;
       _notice = null;
@@ -153,6 +196,13 @@ class _EmployeeHomeViewState extends ConsumerState<EmployeeHomeView> {
   ) async {
     if (_punching) return;
 
+    final lock = await _currentLock();
+    if (!mounted) return;
+    if (lock != null) {
+      _showLock(lock);
+      return;
+    }
+
     String? payload;
     try {
       payload = await ref.read(qrScanLauncherProvider).scan(context);
@@ -179,7 +229,7 @@ class _EmployeeHomeViewState extends ConsumerState<EmployeeHomeView> {
           kind: AttendanceNoticeKind.warning,
           title: 'Not a workplace QR code',
           message:
-              'Point the camera at the printed Attendance code from your '
+              'Point the camera at the printed Attendly code from your '
               'owner. Nothing was recorded.',
         );
       });
@@ -230,6 +280,17 @@ class _EmployeeHomeViewState extends ConsumerState<EmployeeHomeView> {
     final state = ref.watch(attendanceTodayProvider(organisation.id));
     final today = state.value;
     _live = today?.hasOpenSession ?? false;
+
+    // The lock is device-local and resolves asynchronously; a missing value
+    // simply means no lock for this account.
+    final userId = widget.account.membership.userId;
+    final lockAsync = userId == null
+        ? const AsyncValue<DateTime?>.data(null)
+        : ref.watch(punchLockUntilProvider(userId));
+    final lockUntil = lockAsync.value;
+    _lockedUntil = lockUntil != null && lockUntil.isAfter(DateTime.now())
+        ? lockUntil
+        : null;
 
     if (today == null) {
       if (state.isLoading) {
@@ -324,6 +385,7 @@ class _EmployeeHomeViewState extends ConsumerState<EmployeeHomeView> {
             today: today,
             now: DateTime.now().toUtc(),
             punching: _punching,
+            lockedUntil: _lockedUntil,
             onPunch: () {
               final action = today.nextAction;
               if (action != null) _punch(organisation.id, today, action);

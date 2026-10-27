@@ -16,8 +16,8 @@ class WelcomeScreen extends StatelessWidget {
     return OnboardingScaffold(
       title: 'Welcome',
       subtitle:
-          'Attendance your team can rely on — set up in minutes, check '
-          'in with one tap.',
+          'Simple attendance for small teams — set up in minutes, check in '
+          'with one tap.',
       bottom: TextButton.icon(
         onPressed: () => _toSignIn(context),
         icon: const Icon(Icons.login_rounded, size: AppIconSize.md),

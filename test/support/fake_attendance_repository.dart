@@ -30,6 +30,7 @@ class FakeAttendanceRepository implements AttendanceRepository {
   double? lastAccuracyMeters;
   String? lastWorkplaceId;
   String? lastQrPayload;
+  String? lastSessionIdForPunchOut;
   final List<String> idempotencyKeys = [];
 
   @override
@@ -66,6 +67,9 @@ class FakeAttendanceRepository implements AttendanceRepository {
     final result = punchResult;
     if (result == null) {
       throw StateError('FakeAttendanceRepository.punchResult not set');
+    }
+    if (action == PunchAction.punchOut) {
+      lastSessionIdForPunchOut = result.session?.id;
     }
     if (result.accepted && nextTodayAfterPunch != null) {
       today = nextTodayAfterPunch!;

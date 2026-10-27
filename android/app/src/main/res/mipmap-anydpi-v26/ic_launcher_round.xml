@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Round-mask variant, requested by android:roundIcon on API 24-25 devices;
+     API 26+ launchers use the adaptive icon above instead. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>

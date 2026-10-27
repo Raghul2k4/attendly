@@ -1,5 +1,5 @@
 name: attendance
-description: "Premium small-business attendance app (owner + employee)."
+description: "Attendly — affordable attendance for small business teams (owner + employee)."
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -18,10 +18,15 @@ dependencies:
   intl: ^0.20.3
   latlong2: ^0.10.1
   mobile_scanner: ^7.4.2
+  pdf: ^3.13.1
+  barcode: ^2.2.9
+  printing: ^5.15.1
   qr_flutter: ^4.1.0
   riverpod: ^3.4.3
+  shared_preferences: ^2.5.6
   supabase: ^2.16.5
   supabase_flutter: ^2.18.3
+  url_launcher: ^6.3.1
   uuid: ^4.6.0
 
 dev_dependencies:
@@ -35,6 +40,7 @@ flutter:
 
   assets:
     - .env
+    - "assets/app_icon_source.png"
 
   # Inter variable font: weight entries map TextStyle.fontWeight onto the
   # font's wght axis (documented Flutter variable-font pattern).

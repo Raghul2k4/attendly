@@ -60,6 +60,13 @@ Concise Stage 2 plan per AGENTS.md. Living document; update as slices land.
   generated launcher icons and Play assets, `version: 1.0.0+1`, a signed AAB
   (target SDK 36, signature verified), and the Play/Data safety/legal docs.
   Device confirmation of account deletion and the Play Console steps remain.
+- **Brand assets shipped**: the supplied scan/verified artwork
+  (`assets/app_icon_source.png`) now drives the legacy, adaptive and round
+  launcher icons, the Android 13 themed icon layer, the Play 512 icon, the
+  in-app splash mark and the store feature graphic. The launcher icon uses the
+  artwork's centre figure because the corner scan brackets cannot survive
+  Android's icon mask at a readable size; the full illustration remains on the
+  splash and store listing.
 
 ## Architecture decisions
 

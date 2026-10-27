@@ -108,6 +108,16 @@ bridge resolves by name; without it the release APK hangs on the splash screen
 while debug builds work. Rebuild and smoke-test a release APK after changing
 plugins.
 
+## Brand assets
+
+`assets/app_icon_source.png` is the single source of truth for the app identity.
+`tool/generate_icons.ps1` derives the legacy launcher PNGs, the adaptive
+foreground/monochrome layers, the round icons and `docs/store/play-icon-512.png`
+from it; `tool/generate_feature_graphic.ps1` writes the store feature graphic.
+The splash screen (`BrandMark`) renders the full illustration, while the
+launcher icon uses its centre figure so it stays legible through Android's icon
+mask. Re-run both scripts after changing the artwork.
+
 ## Project layout
 
 ```

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher plate colour: sampled from the brand artwork's own background so
+     the transparent adaptive foreground blends into it without a seam. -->
+<resources>
+    <color name="ic_launcher_background">#FBFCFE</color>
+    <!-- Matches AppColors.background so the native launch window does not
+         flash white before Flutter's first frame. -->
+    <color name="launch_background">#F7F9FA</color>
+</resources>

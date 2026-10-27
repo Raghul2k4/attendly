@@ -35,6 +35,7 @@ void main() {
                 padding: const EdgeInsets.all(16),
                 child: WorkplaceQrCard(
                   organisationId: testOrganisation.id,
+                  organisationName: testOrganisation.name,
                   workplace: testWorkplace(isActive: active),
                 ),
               ),
@@ -62,7 +63,7 @@ void main() {
       expect(repository.lastWorkplaceId, 'wp-1');
       expect(find.byType(QrImageView), findsOneWidget);
       expect(
-        find.textContaining('only time this code is shown'),
+        find.textContaining('print it again whenever'),
         findsOneWidget,
       );
       expect(find.text('Active'), findsOneWidget);
@@ -77,7 +78,7 @@ void main() {
       await pumpCard(tester, repository);
 
       expect(find.text('Active'), findsOneWidget);
-      expect(find.byType(QrImageView), findsNothing);
+      expect(find.byType(QrImageView), findsOneWidget);
 
       await tester.tap(find.text('Replace QR'));
       await tester.pumpAndSettle();

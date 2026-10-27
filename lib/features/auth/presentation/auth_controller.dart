@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:riverpod/riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/device/punch_lockout.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/errors/error_mapper.dart';
 import '../data/auth_repository.dart';
@@ -79,18 +80,36 @@ final authControllerProvider = NotifierProvider<AuthController, AuthState>(
 /// Runs the actual sign-in/sign-up/sign-out calls, mapping failures so the
 /// form layer deals only in [AppException]s.
 class AuthActions {
-  AuthActions(this._repository);
+  AuthActions(this._repository, this._lockout);
 
   final AuthRepository _repository;
+  final PunchLockoutStore _lockout;
 
   Future<User?> signIn(String email, String password) async {
+    final User? user;
     try {
-      return await _repository.signIn(email: email.trim(), password: password);
+      user = await _repository.signIn(
+        email: email.trim(),
+        password: password,
+      );
     } on AppException {
       rethrow;
     } catch (e) {
       throw mapAuthError(e);
     }
+
+    // Device bookkeeping: a different account signing in on this phone starts
+    // a one-hour punch lock. A storage failure must never turn a valid
+    // sign-in into an error, so it is deliberately ignored here.
+    if (user != null) {
+      try {
+        await _lockout.recordSignIn(userId: user.id, at: DateTime.now());
+      } catch (_) {
+        // No local storage → no local lock; the server still validates every
+        // punch.
+      }
+    }
+    return user;
   }
 
   Future<SignUpOutcome> signUp({
@@ -133,5 +152,8 @@ class AuthActions {
 }
 
 final authActionsProvider = Provider<AuthActions>(
-  (ref) => AuthActions(ref.watch(authRepositoryProvider)),
+  (ref) => AuthActions(
+    ref.watch(authRepositoryProvider),
+    ref.watch(punchLockoutStoreProvider),
+  ),
 );

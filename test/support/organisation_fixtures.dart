@@ -12,7 +12,7 @@ const testOrganisation = Organisation(
 const testFreePlan = PlanInfo(
   planId: 'free',
   displayName: 'Free',
-  maxActiveEmployees: 15,
+  maxActiveEmployees: null,
 );
 
 Membership testMember({

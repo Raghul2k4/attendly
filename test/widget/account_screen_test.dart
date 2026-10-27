@@ -65,7 +65,7 @@ void main() {
       expect(find.text('Corner Cafe'), findsOneWidget);
       expect(find.text('Owner'), findsOneWidget);
       expect(find.text('Asia/Kolkata'), findsOneWidget);
-      expect(find.text('Free · 15 seats'), findsOneWidget);
+      expect(find.text('Free · Unlimited staff'), findsOneWidget);
       expect(find.text('Privacy policy'), findsOneWidget);
     });
 

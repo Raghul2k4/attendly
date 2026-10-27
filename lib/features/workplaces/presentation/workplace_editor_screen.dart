@@ -277,13 +277,13 @@ class _EditorBodyState extends ConsumerState<_EditorBody> {
       message = issue.opensLocationSettings
           ? 'Location settings opened. Turn location on, then tap Use my '
                 'location again.'
-          : 'App settings opened. Allow Location for Attendance, then tap '
+          : 'App settings opened. Allow Location for Attendly, then tap '
                 'Use my location again.';
     } else {
       message = issue.opensLocationSettings
           ? 'Open Android Settings > Location and turn it on, then tap Use my '
                 'location again.'
-          : 'Open Android Settings > Apps > Attendance > Permissions and allow '
+          : 'Open Android Settings > Apps > Attendly > Permissions and allow '
                 'location, then tap Use my location again.';
     }
 
@@ -581,6 +581,7 @@ class _EditorBodyState extends ConsumerState<_EditorBody> {
                 const SizedBox(height: AppSpacing.lg),
                 WorkplaceQrCard(
                   organisationId: widget.organisation.id,
+                  organisationName: widget.organisation.name,
                   workplace: existing,
                 ),
               ],

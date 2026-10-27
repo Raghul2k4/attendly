@@ -11,6 +11,7 @@ import '../../organisation/domain/organisation_models.dart';
 import '../../organisation/presentation/organisation_providers.dart';
 import 'auth_controller.dart';
 import 'privacy_policy_screen.dart';
+import '../../../core/widgets/buy_me_coffee_card.dart';
 
 /// Account and settings: who you are, which business you belong to, the
 /// privacy policy, sign-out, and the Play-required account deletion.
@@ -59,8 +60,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Account')),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: const Text('Account'),
+      ),
       body: SafeArea(
         child: accountAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -155,9 +158,11 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                         if (account.plan != null)
                           _DetailRow(
                             label: 'Plan',
-                            value:
-                                '${account.plan!.displayName} · '
-                                '${account.plan!.maxActiveEmployees} seats',
+                            value: account.plan!.hasStaffLimit
+                                ? '${account.plan!.displayName} · '
+                                      '${account.plan!.maxActiveEmployees} seats'
+                                : '${account.plan!.displayName} · Unlimited '
+                                      'staff',
                           ),
                       ],
                     ],
@@ -172,6 +177,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                     clipBehavior: Clip.antiAlias,
                     child: Column(
                       children: [
+                        const Divider(height: 1),
                         ListTile(
                           leading: const Icon(
                             Icons.privacy_tip_outlined,
@@ -209,6 +215,8 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: AppSpacing.lg),
+                const BuyMeCoffeeCard(),
                 const SizedBox(height: AppSpacing.xxl),
                 Text(
                   'Danger zone',

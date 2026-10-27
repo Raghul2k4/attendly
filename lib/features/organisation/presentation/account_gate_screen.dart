@@ -23,11 +23,11 @@ class AccountGateScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final account = ref.watch(myAccountProvider);
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Attendance'),
-        actions: [
-          IconButton(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        appBar: AppBar(
+          title: const Text('Attendly'),
+          actions: [
+            IconButton(
             tooltip: 'Account',
             onPressed: () => context.push('/account'),
             icon: const Icon(Icons.person_outline_rounded),
@@ -86,7 +86,7 @@ class _SetupChoice extends ConsumerWidget {
         Text('Hi, $firstName', style: textTheme.headlineSmall),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          'Let’s get your workplace ready. Choose how you’ll use Attendance.',
+          'Let’s get your workplace ready. Choose how you’ll use Attendly.',
           style: textTheme.bodyMedium?.copyWith(color: AppColors.slate500),
         ),
         const SizedBox(height: AppSpacing.xl),

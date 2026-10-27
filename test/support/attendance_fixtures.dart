@@ -51,6 +51,24 @@ AttendanceSession testAttendanceSession({
   );
 }
 
+AttendanceSession testAttendanceSessionNamed({
+  String id = 'session-1',
+  DateTime? workDate,
+  DateTime? checkInAt,
+  DateTime? checkOutAt,
+  String checkInTime = '09:12',
+  String? checkOutTime,
+  bool isLate = false,
+}) => testAttendanceSession(
+  id: id,
+  workDate: workDate,
+  checkInAt: checkInAt,
+  checkOutAt: checkOutAt,
+  checkInTime: checkInTime,
+  checkOutTime: checkOutTime,
+  isLate: isLate,
+);
+
 AttendanceToday testAttendanceToday({
   AttendanceDayState state = AttendanceDayState.notStarted,
   AttendanceSession? session,
@@ -63,11 +81,11 @@ AttendanceToday testAttendanceToday({
       session ??
       switch (state) {
         AttendanceDayState.notStarted => null,
-        AttendanceDayState.checkedIn => testAttendanceSession(
+        AttendanceDayState.checkedIn => testAttendanceSessionNamed(
           checkInAt: start,
           checkInTime: '09:12',
         ),
-        AttendanceDayState.completed => testAttendanceSession(
+        AttendanceDayState.completed => testAttendanceSessionNamed(
           checkInAt: start.subtract(const Duration(hours: 8)),
           checkOutAt: start,
           checkInTime: '09:12',

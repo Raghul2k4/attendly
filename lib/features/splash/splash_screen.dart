@@ -50,10 +50,10 @@ class _SplashScreenState extends State<SplashScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const BrandMark(size: 64),
+                const BrandMark(size: 96),
                 const SizedBox(height: AppSpacing.lg),
                 Text(
-                  'Attendance',
+                  'Attendly',
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: AppSpacing.sm),

@@ -32,9 +32,15 @@ abstract class WorkplaceRepository {
 
   Future<Map<String, WorkplaceQrStatus>> fetchQrStatuses(String organisationId);
 
-  /// Returns the full QR payload. The server keeps only a hash; this value is
-  /// the only copy the client will ever see.
+  /// Creates a new token (revoking the previous one) and returns its payload.
   Future<String> generateQr({
+    required String organisationId,
+    required String workplaceId,
+  });
+
+  /// Returns the payload of the workplace's current live token so the printed
+  /// QR can be reopened later. Owner-only on the server.
+  Future<String> fetchQrPayload({
     required String organisationId,
     required String workplaceId,
   });
@@ -144,6 +150,17 @@ class SupabaseWorkplaceRepository implements WorkplaceRepository {
   }) => _guard(
     () async => await _client.rpc<String>(
       'generate_workplace_qr',
+      params: {'p_org': organisationId, 'p_workplace': workplaceId},
+    ),
+  );
+
+  @override
+  Future<String> fetchQrPayload({
+    required String organisationId,
+    required String workplaceId,
+  }) => _guard(
+    () async => await _client.rpc<String>(
+      'get_workplace_qr',
       params: {'p_org': organisationId, 'p_workplace': workplaceId},
     ),
   );

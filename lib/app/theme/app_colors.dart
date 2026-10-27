@@ -11,6 +11,11 @@ abstract final class AppColors {
   static const Color emerald700 = Color(0xFF065F46); // pressed accent
   static const Color emerald50 = Color(0xFFECFDF5); // subtle success bg
 
+  // Dark brand / accents.
+  static const Color darkEmerald500 = Color(0xFF10B981);
+  static const Color darkEmerald700 = Color(0xFF047857);
+  static const Color darkEmerald50 = Color(0xFF064E3B);
+
   // Neutrals — warm off-white family.
   static const Color ink900 = Color(0xFF0F172A); // primary text (slate-900)
   static const Color ink700 = Color(0xFF334155); // strong secondary text
@@ -21,6 +26,22 @@ abstract final class AppColors {
   static const Color border = Color(0xFFE3EAEE); // card / divider borders
   static const Color background = Color(0xFFF7F9FA); // app background
   static const Color surface = Color(0xFFFFFFFF); // card surface
+
+  // Dark neutrals — night slate family.
+  static const Color darkBackground = Color(0xFF0B1120);
+  static const Color darkSurface = Color(0xFF1E293B);
+  static const Color darkBorder = Color(0xFF334155);
+  static const Color darkInk900 = Color(0xFFF8FAFC);
+  static const Color darkInk700 = Color(0xFFE2E8F0);
+  static const Color darkInk600 = Color(0xFFCBD5E1);
+  static const Color darkSlate500 = Color(0xFF94A3B8);
+  static const Color darkSlate400 = Color(0xFF64748B);
+
+  // Plate behind the brand illustration; matches the launcher icon plate
+  // sampled from the artwork and declared in
+  // android/app/src/main/res/values/colors.xml.
+  static const Color brandPlate = Color(0xFFFBFCFE);
+  static const Color darkBrandPlate = Color(0xFF1E293B);
 
   // Status.
   static const Color amber600 = Color(0xFFB45309); // restrained warning text

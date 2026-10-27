@@ -138,8 +138,8 @@ class _CreateOrganisationScreenState
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
-                          'Up to 15 active staff. Change work hours, '
-                          'attendance methods and locations later.',
+                          'Unlimited staff, free. Change work hours, attendance '
+                          'methods and locations later.',
                           style: textTheme.bodySmall?.copyWith(
                             color: AppColors.emerald700,
                           ),

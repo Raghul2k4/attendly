@@ -11,8 +11,9 @@ class AttendanceApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
+
     return MaterialApp.router(
-      title: 'Attendance',
+      title: 'Attendly',
       theme: buildAppTheme(),
       routerConfig: router,
       debugShowCheckedModeBanner: false,
@@ -28,7 +29,7 @@ class ConfigMissingApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Attendance — setup',
+      title: 'Attendly — setup',
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         backgroundColor: const Color(0xFFF7F9FA),

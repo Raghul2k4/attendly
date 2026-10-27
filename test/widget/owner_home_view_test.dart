@@ -79,7 +79,7 @@ void main() {
       await pumpView(tester, account: owner, members: members);
 
       expect(find.text('Corner Cafe'), findsOneWidget);
-      expect(find.text('2 of 15 used'), findsOneWidget);
+      expect(find.text('2 active staff'), findsOneWidget);
       expect(find.textContaining('1 invite is waiting'), findsOneWidget);
       expect(find.text('Add staff'), findsOneWidget);
       expect(find.text('Ada Owner'), findsOneWidget);
@@ -183,7 +183,7 @@ void main() {
 
       await pumpView(tester, account: account, members: [account.membership]);
 
-      expect(find.text('0 of 15 used'), findsOneWidget);
+      expect(find.text('0 active staff'), findsOneWidget);
       expect(find.text('No employees yet'), findsOneWidget);
       expect(find.text('Add staff'), findsOneWidget);
       expect(find.text('Workplaces'), findsOneWidget);

@@ -1,4 +1,5 @@
 import 'package:attendance/app/theme/app_theme.dart';
+import 'package:attendance/core/device/punch_lockout.dart';
 import 'package:attendance/core/errors/app_exception.dart';
 import 'package:attendance/core/location/location_service.dart';
 import 'package:attendance/features/attendance/domain/attendance_models.dart';
@@ -15,6 +16,21 @@ import '../support/fake_location_service.dart';
 import '../support/fake_qr_scan_launcher.dart';
 import '../support/organisation_fixtures.dart';
 
+class FakePunchLockoutStore implements PunchLockoutStore {
+  const FakePunchLockoutStore({this.lockedUntil});
+
+  final DateTime? lockedUntil;
+
+  @override
+  Future<DateTime?> lockUntilFor(String userId) async => lockedUntil;
+
+  @override
+  Future<DateTime?> recordSignIn({
+    required String userId,
+    required DateTime at,
+  }) async => null;
+}
+
 Future<void> pumpFrames(WidgetTester tester, [int count = 10]) async {
   for (var i = 0; i < count; i += 1) {
     await tester.pump(const Duration(milliseconds: 20));
@@ -26,6 +42,7 @@ Future<void> pumpHome(
   required FakeAttendanceRepository repository,
   FakeLocationService? location,
   FakeQrScanLauncher? scanner,
+  PunchLockoutStore? lockoutStore,
 }) async {
   await tester.binding.setSurfaceSize(const Size(420, 1000));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -38,6 +55,9 @@ Future<void> pumpHome(
         ),
         qrScanLauncherProvider.overrideWithValue(
           scanner ?? FakeQrScanLauncher(),
+        ),
+        punchLockoutStoreProvider.overrideWithValue(
+          lockoutStore ?? const FakePunchLockoutStore(),
         ),
       ],
       child: MaterialApp(

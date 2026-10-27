@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_dimensions.dart';
@@ -16,11 +17,18 @@ class AttendanceStatusCard extends StatelessWidget {
     required this.punching,
     required this.onPunch,
     required this.onScanQr,
+    this.lockedUntil,
   });
 
   final AttendanceToday today;
   final DateTime now;
   final bool punching;
+
+  /// When set, attendance on this phone is paused for the signed-in account
+  /// (a different account signed in here within the last hour). The action
+  /// buttons are replaced with the reason and the end time.
+  final DateTime? lockedUntil;
+
   final VoidCallback onPunch;
 
   /// Opens the workplace scanner. Null only when the caller cannot provide a
@@ -145,6 +153,19 @@ class AttendanceStatusCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ];
+    }
+
+    final lock = lockedUntil;
+    if (lock != null) {
+      return [
+        _InlineWarning(
+          message:
+              'Punching is paused on this phone until '
+              '${DateFormat.jm().format(lock.toLocal())}. A different account '
+              'signed in here less than an hour ago, so attendance is on hold '
+              'to stop one phone checking in for several people.',
         ),
       ];
     }

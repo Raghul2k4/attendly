@@ -79,7 +79,7 @@ void main() {
     test('seat limit gets specific upgrade guidance', () {
       final mapped = mapBackendError(att('plan_limit_reached'));
       expect(mapped.kind, AppErrorKind.conflict);
-      expect(mapped.message, contains('plan is full'));
+      expect(mapped.message, contains('staff limit'));
     });
 
     test('used invite tokens explain that a new one is needed', () {

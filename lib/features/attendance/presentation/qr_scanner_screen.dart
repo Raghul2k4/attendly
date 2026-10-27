@@ -72,7 +72,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       setState(() {
         _invalidMessage =
             'That isn’t a workplace QR code. Point the camera at the printed '
-            'Attendance code, or ask your owner for a current one.';
+            'Attendly code, or ask your owner for a current one.';
       });
       return;
     }

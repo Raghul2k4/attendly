@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'app_dimensions.dart';
 
-/// Builds the light theme. A dark theme can be introduced later; keep the
-/// token usage here so both themes would share component configuration.
+/// Builds the light theme.
 ThemeData buildAppTheme() {
   const colorScheme = ColorScheme.light(
     primary: AppColors.emerald600,
@@ -18,13 +17,15 @@ ThemeData buildAppTheme() {
 
   final base = ThemeData(
     useMaterial3: true,
+    brightness: Brightness.light,
     colorScheme: colorScheme,
     scaffoldBackgroundColor: AppColors.background,
+    cardColor: AppColors.surface,
     fontFamily: 'Inter',
     splashFactory: InkSparkle.splashFactory,
   );
 
-  final textTheme = _buildTextTheme(base.textTheme);
+  final textTheme = _buildTextTheme(base.textTheme, isDark: false);
   final inputBorder = _inputBorder(AppColors.border);
 
   return base.copyWith(
@@ -128,7 +129,12 @@ InputBorder _inputBorder(Color color, {double width = 1.2}) =>
 
 /// Inter variable font: weight is carried through [fontVariations] so each
 /// named style resolves to the correct weight axis value.
-TextTheme _buildTextTheme(TextTheme base) {
+TextTheme _buildTextTheme(TextTheme base, {required bool isDark}) {
+  final primaryText = isDark ? AppColors.darkInk900 : AppColors.ink900;
+  final secondaryText = isDark ? AppColors.darkInk700 : AppColors.ink700;
+  final tertiaryText = isDark ? AppColors.darkInk600 : AppColors.ink600;
+  final mutedText = isDark ? AppColors.darkSlate500 : AppColors.slate500;
+
   TextStyle style(TextStyle s, {double? wght, Color? color, double? size}) =>
       s.copyWith(
         color: color,
@@ -141,38 +147,38 @@ TextTheme _buildTextTheme(TextTheme base) {
         displaySmall: style(
           base.displaySmall!,
           wght: 700,
-          color: AppColors.ink900,
+          color: primaryText,
         ),
         headlineMedium: style(
           base.headlineMedium!,
           wght: 700,
-          color: AppColors.ink900,
+          color: primaryText,
         ),
         headlineSmall: style(
           base.headlineSmall!,
           wght: 700,
-          color: AppColors.ink900,
+          color: primaryText,
         ),
-        titleLarge: style(base.titleLarge!, wght: 600, color: AppColors.ink900),
+        titleLarge: style(base.titleLarge!, wght: 600, color: primaryText),
         titleMedium: style(
           base.titleMedium!,
           wght: 600,
-          color: AppColors.ink900,
+          color: primaryText,
         ),
-        titleSmall: style(base.titleSmall!, wght: 600, color: AppColors.ink900),
-        bodyLarge: style(base.bodyLarge!, wght: 400, color: AppColors.ink700),
-        bodyMedium: style(base.bodyMedium!, wght: 400, color: AppColors.ink700),
-        bodySmall: style(base.bodySmall!, wght: 400, color: AppColors.ink600),
-        labelLarge: style(base.labelLarge!, wght: 600, color: AppColors.ink900),
+        titleSmall: style(base.titleSmall!, wght: 600, color: primaryText),
+        bodyLarge: style(base.bodyLarge!, wght: 400, color: secondaryText),
+        bodyMedium: style(base.bodyMedium!, wght: 400, color: secondaryText),
+        bodySmall: style(base.bodySmall!, wght: 400, color: tertiaryText),
+        labelLarge: style(base.labelLarge!, wght: 600, color: primaryText),
         labelMedium: style(
           base.labelMedium!,
           wght: 500,
-          color: AppColors.ink600,
+          color: tertiaryText,
         ),
         labelSmall: style(
           base.labelSmall!,
           wght: 500,
-          color: AppColors.slate500,
+          color: mutedText,
         ),
       )
       .apply(fontFamily: 'Inter');
