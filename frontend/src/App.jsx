@@ -3,8 +3,8 @@ import { useState } from 'react'
 const CURRENT_DATE = 'October 27, 2026'
 const APP_VERSION = '1.0.0'
 const BUILD_NUMBER = '1'
-const APK_64 = import.meta.env.VITE_APK_URL_64 || '/downloads/attendance-1.0.0-arm64-v8a.apk'
-const APK_32 = import.meta.env.VITE_APK_URL_32 || '/downloads/attendance-1.0.0-armeabi-v7a.apk'
+const APK_64 = import.meta.env.VITE_APK_URL_64 || 'https://github.com/Raghul2k4/attendly/releases/download/apk/attendance-1.0.0-arm64-v8a.apk'
+const APK_32 = import.meta.env.VITE_APK_URL_32 || 'https://github.com/Raghul2k4/attendly/releases/download/apk32/attendance-1.0.0-armeabi-v7a.apk'
 
 function Nav() {
   return (
